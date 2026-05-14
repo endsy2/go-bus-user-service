@@ -1,0 +1,177 @@
+package com.busapp.userservice.controller;
+
+import com.busapp.userservice.dto.response.ApiResponse;
+import com.busapp.userservice.exception.ResourceNotFoundException;
+import com.busapp.userservice.model.User;
+import com.busapp.userservice.repository.UserRepository;
+import com.busapp.userservice.service.MinioService;
+import com.busapp.userservice.service.UserService;
+import com.busapp.userservice.util.MinioUtil;
+import com.busapp.userservice.util.UserUtil;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import com.busapp.userservice.security.UserPrincipal;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Map;
+
+@Slf4j
+@RestController
+@RequestMapping("/api/profile")
+@RequiredArgsConstructor
+public class ProfileController {
+
+    private final MinioService minioService;
+    private final UserService userService;
+    private final MinioUtil minioUtil;
+    private final UserRepository userRepository;
+    private final UserUtil userUtil;
+
+    /**
+     * Upload or update profile image
+     * @param file The image file to upload
+     * @return Response with image URL
+     */
+    @PostMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<Map<String, String>>> uploadProfileImage(
+            @RequestParam("file") MultipartFile file) {
+        
+        try {
+            // Now this works because HeaderAuthenticationFilter populates SecurityContext
+            Long userId = userUtil.getCurrentUserId();
+            
+            if (userId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.of(
+                                HttpStatus.UNAUTHORIZED.value(),
+                                "User not authenticated",
+                                null
+                        ));
+            }
+            
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+            
+            // Delete old image if exists
+            if (user.getImage() != null) {
+                minioService.deleteProfileImage(user.getImage());
+            }
+            
+            // Upload to MinIO
+            String objectName = minioService.uploadProfileImage(file, userId);
+            
+            // Update user profile with new image reference
+            userService.updateProfileImage(userId, objectName);
+            
+            // Generate presigned URL for immediate access
+            String imageUrl = minioUtil.getPresignedUrl(objectName);
+            
+            return ResponseEntity.ok(
+                    ApiResponse.of(
+                            HttpStatus.OK.value(),
+                            "Profile image uploaded successfully",
+                            Map.of(
+                                    "objectName", objectName,
+                                    "imageUrl", imageUrl
+                            )
+                    )
+            );
+        } catch (Exception e) {
+            log.error("Failed to upload profile image", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.of(
+                            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                            "Failed to upload profile image: " + e.getMessage(),
+                            null
+                    ));
+        }
+    }
+
+    /**
+     * Delete profile image
+     * @param authentication Current authenticated user
+     * @return Success response
+     */
+    @DeleteMapping("/image")
+    public ResponseEntity<ApiResponse<Void>> deleteProfileImage(UserPrincipal userPrincipal) {
+        try {
+            Long userId = userPrincipal.getUserId();
+            
+            // Get current image reference
+            String currentImage = userService.getUserProfileImage(userId);
+            
+            if (currentImage != null && !currentImage.isEmpty()) {
+                // Delete from MinIO
+                minioService.deleteProfileImage(currentImage);
+                
+                // Update user profile
+                userService.updateProfileImage(userId, null);
+            }
+            
+            return ResponseEntity.ok(
+                    ApiResponse.of(
+                            HttpStatus.OK.value(),
+                            "Profile image deleted successfully",
+                            null
+                    )
+            );
+        } catch (Exception e) {
+            log.error("Failed to delete profile image", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.of(
+                            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                            "Failed to delete profile image: " + e.getMessage(),
+                            null
+                    ));
+        }
+    }
+
+    /**
+     * Get presigned URL for current profile image
+     * @param authentication Current authenticated user
+     * @return Presigned URL
+     */
+//    @GetMapping("/image/url")
+//    public ResponseEntity<ApiResponse<Map<String, String>>> getProfileImageUrl(Authentication authentication) {
+//        try {
+//            Long userId = Long.parseLong(authentication.getName());
+//
+//            String objectName = userService.getUserProfileImage(userId);
+//
+//            if (objectName == null || objectName.isEmpty()) {
+//                return ResponseEntity.ok(
+//                        ApiResponse.of(
+//                                HttpStatus.OK.value(),
+//                                "No profile image found",
+//                                Map.of("imageUrl", "")
+//                        )
+//                );
+//            }
+//
+//            String imageUrl = minioUtil.getPresignedUrl(objectName);
+//
+//            return ResponseEntity.ok(
+//                    ApiResponse.of(
+//                            HttpStatus.OK.value(),
+//                            "Profile image URL retrieved successfully",
+//                            Map.of(
+//                                    "objectName", objectName,
+//                                    "imageUrl", imageUrl != null ? imageUrl : ""
+//                            )
+//                    )
+//            );
+//        } catch (Exception e) {
+//            log.error("Failed to get profile image URL", e);
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(ApiResponse.of(
+//                            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+//                            "Failed to get profile image URL: " + e.getMessage(),
+//                            null
+//                    ));
+//        }
+//    }
+}

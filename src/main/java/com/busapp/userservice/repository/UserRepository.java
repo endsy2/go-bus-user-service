@@ -1,0 +1,40 @@
+package com.busapp.userservice.repository;
+
+import com.busapp.userservice.model.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+@Repository
+public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
+    Optional<User> findByEmail(String email);
+    boolean existsByEmail(String email);
+    boolean existsByUserName(String userName);
+    boolean existsByUserNameAndIdNot(String userName, Long id);
+    Optional<User> findByGoogleId(String googleId);
+    Optional<User> findByPhone(String phone);
+
+    /**
+     * Fetch only basic user fields using native SQL query.
+     * This avoids loading the entire User entity and its relationships.
+     * Only selects: id, userName, fullName, email, phone
+     */
+    @Query(value = "SELECT u.id, u.user_name, u.full_name, u.email, u.phone FROM user_service.user u WHERE u.id =:id",
+            nativeQuery = true)
+    Optional<Object[]> findBasicByIdNative(@Param("id") Long id);
+
+    /**
+     * Fetch basic user fields for multiple users using native SQL.
+     */
+    @Query(value = "SELECT u.id, u.user_name, u.full_name, u.email, u.phone FROM user_service.user u WHERE u.id IN (:ids)",
+            nativeQuery = true)
+    List<Object[]> findBasicByIdsNative(@Param("ids") Set<Long> ids);
+
+    List<Long> id(Long id);
+}
