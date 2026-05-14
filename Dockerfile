@@ -5,8 +5,11 @@ WORKDIR /app
 # Copy entire project
 COPY . .
 
-# Build the application using pre-installed gradle
-RUN gradle build -x test --no-daemon
+# FIX: ensure gradlew is executable
+RUN chmod +x gradlew
+
+# Build the application
+RUN ./gradlew build -x test --no-daemon
 
 
 # ─── Stage 2: Runtime ───────────────────────────
