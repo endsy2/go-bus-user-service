@@ -2,6 +2,7 @@
 build/
 .gradle/
 *.log
+gradle/
 
 # Ignore IDE files
 .idea/
