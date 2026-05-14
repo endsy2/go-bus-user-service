@@ -1,0 +1,25 @@
+# Ignore build outputs
+build/
+.gradle/
+*.log
+
+# Ignore IDE files
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Ignore git
+.git/
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# IMPORTANT: Do NOT ignore gradle wrapper - we need these files
+!gradle/
+!gradle/wrapper/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+!gradlew
+!gradlew.bat
