@@ -19,7 +19,7 @@ WORKDIR /app
 RUN apk add --no-cache curl
 
 # Copy built jar with explicit name
-COPY --from=build /app/build/libs/user-server-*.jar app.jar
+COPY --from=build /app/build/libs/user-service-1.0.0.jar app.jar
 
 # Verify jar exists and list contents
 RUN ls -lh /app/ && echo "Java version:" && java -version
