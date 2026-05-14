@@ -7,11 +7,7 @@ spring:
   application:
     name: user-service
   datasource:
-#    url: jdbc:postgresql://${POSTGRES_HOST:ep-dry-flower-a1e2sv79-pooler.ap-southeast-1.aws.neon.tech}:${POSTGRES_PORT:5432}/${POSTGRES_DB:neondb}?sslmode=${PGSSLMODE:require}&sslchannelbinding=${PGCHANNELBINDING:require}
-#    driver-class-name: org.postgresql.Driver
-#    username: ${POSTGRES_USER:neondb_owner}
-#    password: ${POSTGRES_PASSWORD:npg_MLKJPNA8nEu2}
-    url: ${POSTGRES_HOST}
+   url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:busbooking}
     driver-class-name: org.postgresql.Driver
     username: ${POSTGRES_USER:postgres}
     password: ${POSTGRES_PASSWORD:postgres}
