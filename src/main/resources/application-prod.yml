@@ -11,7 +11,7 @@ spring:
 #    driver-class-name: org.postgresql.Driver
 #    username: ${POSTGRES_USER:neondb_owner}
 #    password: ${POSTGRES_PASSWORD:npg_MLKJPNA8nEu2}
-    url: jdbc:${POSTGRES_HOST}
+    url: ${POSTGRES_HOST}
     driver-class-name: org.postgresql.Driver
     username: ${POSTGRES_USER:postgres}
     password: ${POSTGRES_PASSWORD:postgres}
