@@ -69,7 +69,7 @@ jwt:
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_BASE_URL}/eureka/
+      defaultZone: ${EUREKA_BASE_URL}
     fetch-registry: true
     register-with-eureka: true
   instance:
