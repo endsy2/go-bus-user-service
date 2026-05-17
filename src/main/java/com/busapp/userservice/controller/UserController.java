@@ -55,14 +55,6 @@ public class UserController extends BaseController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping
-    public ResponseEntity<ApiResponse<List<UserResponseDetail>>> getAllUsers() {
-        ApiResponse<List<UserResponseDetail>> response = ApiResponse.of(
-                "Users retrieved successfully",
-                userService.getAllUsers());
-        return ResponseEntity.ok(response);
-    }
-
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<UserResponseDetail>> getUserById(@PathVariable Long id) {
         ApiResponse<UserResponseDetail> response = ApiResponse.of(

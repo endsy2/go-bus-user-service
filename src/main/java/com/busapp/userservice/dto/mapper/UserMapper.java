@@ -39,7 +39,7 @@ public class UserMapper {
         response.setGender(user.getGender());
         response.setCreatedAt(user.getCreatedAt());
         response.setIsEmployee(user.getIsEmployee());
-        response.setProfilePicture(minioUtil.getPresignedUrl(user.getImage()));
+        response.setProfilePicture(minioUtil.getPresignedUrlWithTimeout(user.getImage(), 200));
         response.setIsDeleted(user.getIsDeleted());
         response.setIsActive(user.getActive());
         response.setIsWalletExist(user.getIsWalletExist());

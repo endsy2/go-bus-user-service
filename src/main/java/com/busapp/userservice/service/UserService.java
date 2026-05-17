@@ -11,7 +11,7 @@ import java.util.Set;
 
 public interface UserService {
 
-    List<UserResponseDetail> getAllUsers();
+
 
     /**
      * Get multiple users by their IDs in a single call (batch operation)

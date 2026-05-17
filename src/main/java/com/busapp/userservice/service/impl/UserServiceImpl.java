@@ -31,13 +31,6 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
 
-    @Override
-    public List<UserResponseDetail> getAllUsers() {
-        return userRepository.findAll()
-                .stream()
-                .map(userMapper::toResponse)
-                .collect(Collectors.toList());
-    }
 
     @Override
     public List<UserResponseDetail> getUsersByIds(Set<Long> userIds) {

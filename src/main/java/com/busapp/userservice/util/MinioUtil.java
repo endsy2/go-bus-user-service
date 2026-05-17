@@ -6,8 +6,10 @@ import io.minio.http.Method;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -43,6 +45,33 @@ public class MinioUtil {
             return url;
         } catch (Exception e) {
             log.error("Failed to generate presigned URL for: {}", objectName, e);
+            return null;
+        }
+    }
+
+    /**
+     * Async version with timeout for non-blocking presigned URL generation
+     */
+    @Async("minioTaskExecutor")
+    public CompletableFuture<String> getPresignedUrlAsync(String objectName) {
+        return CompletableFuture.supplyAsync(() -> getPresignedUrl(objectName));
+    }
+
+    /**
+     * Get presigned URL with timeout fallback
+     * Returns null if MinIO call takes longer than specified timeout
+     */
+    public String getPresignedUrlWithTimeout(String objectName, long timeoutMs) {
+        if (objectName == null || objectName.isEmpty()) {
+            return null;
+        }
+
+        try {
+            return getPresignedUrlAsync(objectName)
+                    .completeOnTimeout(null, timeoutMs, TimeUnit.MILLISECONDS)
+                    .get();
+        } catch (Exception e) {
+            log.warn("Timeout or error getting presigned URL for: {}", objectName, e);
             return null;
         }
     }
