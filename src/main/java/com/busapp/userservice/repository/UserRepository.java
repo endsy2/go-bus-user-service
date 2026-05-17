@@ -14,6 +14,17 @@ import java.util.Set;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
     Optional<User> findByEmail(String email);
+    
+    /**
+     * Optimized query to fetch user by email with roles and permissions.
+     * Used for login to avoid N+1 queries when generating JWT tokens.
+     */
+    @Query("SELECT DISTINCT u FROM User u " +
+           "LEFT JOIN FETCH u.roles r " +
+           "LEFT JOIN FETCH r.permissions " +
+           "WHERE u.email = :email")
+    Optional<User> findByEmailWithRolesAndPermissions(@Param("email") String email);
+    
     boolean existsByEmail(String email);
     boolean existsByUserName(String userName);
     boolean existsByUserNameAndIdNot(String userName, Long id);
