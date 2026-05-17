@@ -277,7 +277,6 @@ public class AdminUserServiceImpl implements AdminUserService {
                 .fullName(user.getFullName())
                 .email(user.getEmail())
                 .phone(user.getPhone())
-                .image(user.getImage())
                 .gender(user.getGender())
                 .googleId(user.getGoogleId())
                 .active(Boolean.TRUE.equals(user.getActive()))

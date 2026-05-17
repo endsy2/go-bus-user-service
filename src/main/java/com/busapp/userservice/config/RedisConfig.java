@@ -204,6 +204,8 @@ public class RedisConfig {
     /**
      * Redis-based cache manager with custom TTL per cache.
      * - presignedUrls: 6 days (URLs valid for 7 days, refresh before expiry)
+     * - roleWithPermissions: 1 hour (single role with permissions)
+     * - rolesWithPermissions: 1 hour (multiple roles with permissions)
      * - default: 1 hour for other caches
      */
     @Bean
@@ -214,9 +216,11 @@ public class RedisConfig {
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer()))
                 .disableCachingNullValues();
 
-        // Custom TTL for presigned URLs cache
+        // Custom TTL for different caches
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
         cacheConfigurations.put("presignedUrls", defaultConfig.entryTtl(Duration.ofDays(6)));
+        cacheConfigurations.put("roleWithPermissions", defaultConfig.entryTtl(Duration.ofHours(1)));
+        cacheConfigurations.put("rolesWithPermissions", defaultConfig.entryTtl(Duration.ofHours(1)));
 
         return RedisCacheManager.builder(redisConnectionFactory)
                 .cacheDefaults(defaultConfig)

@@ -7,6 +7,7 @@ import com.busapp.userservice.dto.response.UserBasicResponse;
 import com.busapp.userservice.dto.response.UserResponseDetail;
 import com.busapp.userservice.model.User;
 import com.busapp.userservice.repository.RoleRepository;
+import com.busapp.userservice.service.RolePermissionCacheService;
 import com.busapp.userservice.service.UserService;
 import com.busapp.userservice.util.MinioUtil;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class UserMapper {
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
     private final MinioUtil minioUtil;
+    private final RolePermissionCacheService rolePermissionCacheService;
 
     public UserResponseDetail toResponse(User user) {
         UserResponseDetail response = new UserResponseDetail();
@@ -44,24 +46,12 @@ public class UserMapper {
         response.setIsActive(user.getActive());
         response.setIsWalletExist(user.getIsWalletExist());
 
-        // Map roles + permissions
-        if (user.getRoles() != null) {
-            Set<RoleResponse> roles = user.getRoles().stream()
-                    .map(role -> RoleResponse.builder()
-                            .id(role.getId())
-                            .name(role.getName())
-                            .description(role.getDescription())
-                            .createdAt(role.getCreatedAt())
-                            .permissions(role.getPermissions() == null ? List.of() :
-                                    role.getPermissions().stream()
-                                            .map(p -> PermissionResponse.builder()
-                                                    .id(p.getId())
-                                                    .name(p.getName())
-                                                    .build())
-                                            .collect(Collectors.toList()))
-                            .build())
+        // Use cached role-permission mapping for fast response
+        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+            Set<Long> roleIds = user.getRoles().stream()
+                    .map(role -> role.getId())
                     .collect(Collectors.toSet());
-            response.setRoles(roles);
+            response.setRoles(rolePermissionCacheService.getRolesWithPermissions(roleIds));
         }
 
         return response;

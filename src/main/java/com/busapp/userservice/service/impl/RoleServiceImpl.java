@@ -10,6 +10,7 @@ import com.busapp.userservice.model.Permission;
 import com.busapp.userservice.model.Role;
 import com.busapp.userservice.repository.PermissionRepository;
 import com.busapp.userservice.repository.RoleRepository;
+import com.busapp.userservice.service.RolePermissionCacheService;
 import com.busapp.userservice.service.RoleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -29,6 +30,7 @@ public class RoleServiceImpl implements RoleService {
     private final RoleRepository       roleRepository;
     private final PermissionRepository permissionRepository;
     private final RoleMapper           roleMapper;
+    private final RolePermissionCacheService rolePermissionCacheService;
 
     @Override
     public List<RoleResponse> getAllRoles() {
@@ -65,7 +67,9 @@ public class RoleServiceImpl implements RoleService {
             throw new DuplicateResourceException("Role already exists: " + request.getName());
         }
         Role role = roleMapper.toEntity(request, resolvePermissions(request.getPermissions()));
-        return roleMapper.toResponse(roleRepository.save(role));
+        RoleResponse response = roleMapper.toResponse(roleRepository.save(role));
+        rolePermissionCacheService.clearRoleCache();
+        return response;
     }
 
     @Override
@@ -77,7 +81,9 @@ public class RoleServiceImpl implements RoleService {
         if (request.getPermissions() != null) {
             role.setPermissions(resolvePermissions(request.getPermissions()));
         }
-        return roleMapper.toResponse(roleRepository.save(role));
+        RoleResponse response = roleMapper.toResponse(roleRepository.save(role));
+        rolePermissionCacheService.clearRoleCache();
+        return response;
     }
 
     @Override
@@ -87,6 +93,7 @@ public class RoleServiceImpl implements RoleService {
             throw new ResourceNotFoundException("Role not found: " + id);
         }
         roleRepository.deleteById(id);
+        rolePermissionCacheService.clearRoleCache();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

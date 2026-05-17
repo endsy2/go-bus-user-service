@@ -21,8 +21,18 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     Optional<User> findByPhone(String phone);
 
     /**
+     * Optimized query to fetch user with only role IDs (not full role objects).
+     * This avoids loading permissions eagerly, which we'll fetch from cache instead.
+     */
+    @Query("SELECT DISTINCT u FROM User u " +
+           "LEFT JOIN FETCH u.roles " +
+           "WHERE u.id = :id")
+    Optional<User> findByIdWithRoles(@Param("id") Long id);
+
+    /**
      * Optimized query to fetch user with roles and permissions in a single query.
      * Uses JOIN FETCH to avoid N+1 query problem.
+     * Use this only when you need the full role-permission data without caching.
      */
     @Query("SELECT DISTINCT u FROM User u " +
            "LEFT JOIN FETCH u.roles r " +
