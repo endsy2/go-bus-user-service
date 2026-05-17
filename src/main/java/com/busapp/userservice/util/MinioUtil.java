@@ -5,6 +5,7 @@ import io.minio.MinioClient;
 import io.minio.http.Method;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
@@ -20,6 +21,7 @@ public class MinioUtil {
         this.minioClient = minioClient;
     }
 
+    @Cacheable(value = "presignedUrls", key = "#objectName", unless = "#result == null")
     public String getPresignedUrl(String objectName) {
         if (objectName == null || objectName.isEmpty()) {
             return null;
@@ -37,6 +39,7 @@ public class MinioUtil {
                             .build()
             );
 
+            log.debug("Generated presigned URL for: {}", actualObjectName);
             return url;
         } catch (Exception e) {
             log.error("Failed to generate presigned URL for: {}", objectName, e);
