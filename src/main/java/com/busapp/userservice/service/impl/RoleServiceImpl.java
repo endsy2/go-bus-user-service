@@ -11,6 +11,7 @@ import com.busapp.userservice.model.Role;
 import com.busapp.userservice.repository.PermissionRepository;
 import com.busapp.userservice.repository.RoleRepository;
 import com.busapp.userservice.service.RolePermissionCacheService;
+import com.busapp.userservice.service.RolePermissionNameCacheService;
 import com.busapp.userservice.service.RoleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -31,6 +32,7 @@ public class RoleServiceImpl implements RoleService {
     private final PermissionRepository permissionRepository;
     private final RoleMapper           roleMapper;
     private final RolePermissionCacheService rolePermissionCacheService;
+    private final RolePermissionNameCacheService rolePermissionNameCacheService;
 
     @Override
     public List<RoleResponse> getAllRoles() {
@@ -68,7 +70,7 @@ public class RoleServiceImpl implements RoleService {
         }
         Role role = roleMapper.toEntity(request, resolvePermissions(request.getPermissions()));
         RoleResponse response = roleMapper.toResponse(roleRepository.save(role));
-        rolePermissionCacheService.clearRoleCache();
+        clearAllRoleCaches();
         return response;
     }
 
@@ -82,7 +84,7 @@ public class RoleServiceImpl implements RoleService {
             role.setPermissions(resolvePermissions(request.getPermissions()));
         }
         RoleResponse response = roleMapper.toResponse(roleRepository.save(role));
-        rolePermissionCacheService.clearRoleCache();
+        clearAllRoleCaches();
         return response;
     }
 
@@ -93,7 +95,14 @@ public class RoleServiceImpl implements RoleService {
             throw new ResourceNotFoundException("Role not found: " + id);
         }
         roleRepository.deleteById(id);
+        clearAllRoleCaches();
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private void clearAllRoleCaches() {
         rolePermissionCacheService.clearRoleCache();
+        rolePermissionNameCacheService.clearCache();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ package com.busapp.userservice.security;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.TimeUnit;
@@ -40,6 +41,11 @@ public class RedisTokenService {
 
     // ── Refresh token storage ─────────────────────────────────────────────────
 
+    /**
+     * Store refresh token asynchronously to avoid blocking login response.
+     * The token is generated and returned immediately, storage happens in background.
+     */
+    @Async("minioTaskExecutor")
     public void storeRefreshToken(Long userId, String refreshToken, long ttlMs) {
         redis.opsForValue().set(
                 REFRESH_PREFIX + userId,

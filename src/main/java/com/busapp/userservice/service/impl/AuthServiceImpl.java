@@ -21,6 +21,7 @@ import com.busapp.userservice.repository.UserWalletRepository;
 import com.busapp.userservice.security.JwtUtil;
 import com.busapp.userservice.security.RedisTokenService;
 import com.busapp.userservice.service.AuthService;
+import com.busapp.userservice.service.RolePermissionNameCacheService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.transaction.Transactional;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -46,6 +48,7 @@ public class AuthServiceImpl implements AuthService {
     private final WalletMapper walletMapper;
     private final UserWalletRepository userWalletRepository;
     private final WalletServiceImpl walletService;
+    private final RolePermissionNameCacheService rolePermissionNameCacheService;
 
     // ── Register ──────────────────────────────────────────────────────────────
 
@@ -79,8 +82,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse login(AuthRequest request) {
-        // Use optimized query to fetch user with roles and permissions in single query
-        User user = userRepository.findByEmailWithRolesAndPermissions(request.getEmail())
+        User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("Invalid email or password."));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
@@ -151,26 +153,20 @@ public class AuthServiceImpl implements AuthService {
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private AuthResponse issueTokenPair(User user) {
-        // Collect role names and flatten all permissions from every assigned role
         Set<Role> roles = user.getRoles() != null ? user.getRoles() : Collections.emptySet();
-
-        List<String> roleNames = roles.stream()
-                .map(Role::getName)
-                .sorted()
-                .toList();
-
-        List<String> permissionNames = roles.stream()
-                .flatMap(r -> r.getPermissions() != null ? r.getPermissions().stream() : Stream.empty())
-                .map(Permission::getName)
-                .distinct()
-                .sorted()
-                .toList();
+        
+        // Use cached role and permission names to avoid expensive stream operations
+        Set<Long> roleIds = roles.stream().map(Role::getId).collect(Collectors.toSet());
+        Map<String, List<String>> names = rolePermissionNameCacheService.getRoleAndPermissionNames(roleIds, roles);
+        
+        List<String> roleNames = names.get("roleNames");
+        List<String> permissionNames = names.get("permissionNames");
 
         String accessToken  = jwtUtil.generateAccessToken(
                 user.getId(), user.getEmail(), user.getUserName(), roleNames, permissionNames);
         String refreshToken = jwtUtil.generateRefreshToken(user.getId());
 
-        // Overwrite any previous refresh token — only one valid per user
+        // Store refresh token asynchronously (non-blocking)
         redisTokenService.storeRefreshToken(
                 user.getId(), refreshToken, jwtUtil.getRefreshTokenExpiry());
 

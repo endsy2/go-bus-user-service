@@ -206,6 +206,7 @@ public class RedisConfig {
      * - presignedUrls: 6 days (URLs valid for 7 days, refresh before expiry)
      * - roleWithPermissions: 1 hour (single role with permissions)
      * - rolesWithPermissions: 1 hour (multiple roles with permissions)
+     * - rolePermissionNames: 1 hour (role and permission names for JWT)
      * - default: 1 hour for other caches
      */
     @Bean
@@ -225,6 +226,7 @@ public class RedisConfig {
         cacheConfigurations.put("presignedUrls", defaultConfig.entryTtl(Duration.ofDays(6)));
         cacheConfigurations.put("roleWithPermissions", defaultConfig.entryTtl(Duration.ofHours(1)));
         cacheConfigurations.put("rolesWithPermissions", defaultConfig.entryTtl(Duration.ofHours(1)));
+        cacheConfigurations.put("rolePermissionNames", defaultConfig.entryTtl(Duration.ofHours(1)));
 
         return RedisCacheManager.builder(redisConnectionFactory)
                 .cacheDefaults(defaultConfig)
