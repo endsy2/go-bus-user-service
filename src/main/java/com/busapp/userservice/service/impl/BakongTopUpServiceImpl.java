@@ -135,6 +135,7 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
             }
 
             // Extract MD5 from response
+            log.info("response from bakong:{}",response);
 
             log.info("md5 debug:{}",response.getData());
 
@@ -267,34 +268,34 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
                             checkTopUpRequest.getHash(), responseBody);
 
                     TopUpBakongResponse bakongResponse = mapper.readValue(responseBody, TopUpBakongResponse.class);
-                    int status = bakongResponse.getResponseCode();
+                    BakongCheckTopUpResponse response = objectMapper.convertValue(bakongResponse.getData(), BakongCheckTopUpResponse.class);
                     log.debug("[BAKONG TOP-UP] Response status code - md5={}, status={}, message={}",
-                            checkTopUpRequest.getHash(), status, bakongResponse.getResponseMessage());
+                            checkTopUpRequest.getHash(), response.getStatus(), bakongResponse.getResponseMessage());
 
                     // Handle terminal states
-                    switch (status) {
-                        case 0 -> {
+                    switch (response.getStatus()) {
+                        case "PAID" -> {
                             log.info("[BAKONG TOP-UP] Payment SUCCESS - md5={}, userId={}",
                                     checkTopUpRequest.getHash(), userId);
                             markSuccessAsync(topUp.getId());
                             return;
                         }
-                        case 15 -> {
-                            log.warn("[BAKONG TOP-UP] Payment FAILED - md5={}, userId={}",
-                                    checkTopUpRequest.getHash(), userId);
-                            markFailureAsync(TopUpStatus.FAILED, topUp.getId(), "Transaction failed");
-                            return;
-                        }
-                        case 46 -> {
-                            log.warn("[BAKONG TOP-UP] Payment EXPIRED - md5={}, userId={}",
-                                    checkTopUpRequest.getHash(), userId);
-                            markFailureAsync(TopUpStatus.EXPIRED, topUp.getId(), "Transaction expired");
-                            return;
-                        }
+//                        case 15 -> {
+//                            log.warn("[BAKONG TOP-UP] Payment FAILED - md5={}, userId={}",
+//                                    checkTopUpRequest.getHash(), userId);
+//                            markFailureAsync(TopUpStatus.FAILED, topUp.getId(), "Transaction failed");
+//                            return;
+//                        }
+//                        case 46 -> {
+//                            log.warn("[BAKONG TOP-UP] Payment EXPIRED - md5={}, userId={}",
+//                                    checkTopUpRequest.getHash(), userId);
+//                            markFailureAsync(TopUpStatus.EXPIRED, topUp.getId(), "Transaction expired");
+//                            return;
+//                        }
                         default -> {
                             // PENDING — wait and retry
                             log.debug("[BAKONG TOP-UP] Payment PENDING - md5={}, status={}, retrying in {}ms",
-                                    checkTopUpRequest.getHash(), status, pollIntervalMs);
+                                    checkTopUpRequest.getHash(), response.getStatus(), pollIntervalMs);
                             Thread.sleep(pollIntervalMs);
                         }
                     }
@@ -402,6 +403,7 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
         } catch (Exception e) {
             log.error("[BAKONG TOP-UP] Error in async markFailure - topUpId={}, error={}", 
                     topUpId, e.getMessage(), e);
+            throw new BadRequestException(reason);
         }
     }
 
