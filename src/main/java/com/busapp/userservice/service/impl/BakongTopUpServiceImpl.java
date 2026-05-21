@@ -3,6 +3,9 @@ package com.busapp.userservice.service.impl;
 import com.busapp.userservice.config.BakongConfig;
 import com.busapp.userservice.dto.request.CheckTopUpRequest;
 import com.busapp.userservice.dto.request.TopUpBakongRequest;
+import com.busapp.userservice.dto.response.BakongCheckTopUpResponse;
+import com.busapp.userservice.dto.response.BakongQrData;
+import com.busapp.userservice.dto.response.BakongResponse;
 import com.busapp.userservice.dto.response.TopUpBakongResponse;
 import com.busapp.userservice.exception.*;
 import com.busapp.userservice.model.TopUp;
@@ -34,6 +37,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -52,9 +56,16 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
     private final BakongUtil bakongTokenService;
     private final RestTemplate restTemplate;
     private final ObjectMapper mapper;
+    private final ObjectMapper objectMapper;
 
     @Value("${bakong.base-url}")
     private String baseUrl;
+
+    @Value("${bakong.account-id}")
+    private String bakongAccountId;
+
+    @Value("${bakong.mobile-number}")
+    private String bakongMobileNumber;
 
     // ─────────────────────────────────────────────
     // 1. Generate KHQR
@@ -62,7 +73,7 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
 
     @Override
     @Transactional
-    public KHQRResponse<KHQRData> generateTopUpKhqr(Long userId, TopUpBakongRequest request) {
+    public BakongQrData generateTopUpKhqr(Long userId, TopUpBakongRequest request) {
         log.info("[BAKONG TOP-UP] Generating KHQR - userId={}, amount={}, currency={}",
                 userId, request.getAmount(), Currency.USD);
 
@@ -99,20 +110,23 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
             log.debug("[BAKONG TOP-UP] Calculated amount - currency={}, amount={}", Currency.USD, amount);
 
             // Build merchant info
-            MerchantInfo merchantInfo = new MerchantInfo();
-            merchantInfo.setBakongAccountId(bakongConfig.getAccountId());
-            merchantInfo.setMerchantId("TOPUP-" + userId);
-            merchantInfo.setAcquiringBank(bakongConfig.getAcquiringBank());
-            merchantInfo.setCurrency(KHQRCurrency.USD);
-            merchantInfo.setAmount(amount);
-            merchantInfo.setMerchantName(bakongConfig.getMerchantName());
-            merchantInfo.setExpirationTimestamp(deadline);
+            String urlTemple = baseUrl.replaceAll("/+$", "") + "/bakong/generateQR";
 
+            String url = UriComponentsBuilder
+                    .fromHttpUrl(urlTemple)
+                    .queryParam("amount", amount)
+                    .queryParam("currency", "USD")
+                    .queryParam("merchant_name", "CHIN KONGMING")
+                    .queryParam("bank_account", bakongAccountId)
+                    .queryParam("number_phone", bakongMobileNumber)
+                    .toUriString();
+
+            log.debug("[BAKONG] Generating KHQR - amount={}", amount);
+            log.debug("URL :{}",url);
+
+            BakongResponse response = restTemplate.getForObject(url, BakongResponse.class);
             log.debug("[BAKONG TOP-UP] Generating KHQR with merchant info - accountId={}, merchantName={}, amount={}",
                     bakongConfig.getAccountId(), bakongConfig.getMerchantName(), amount);
-
-            // Generate KHQR
-            KHQRResponse<KHQRData> response = BakongKHQR.generateMerchant(merchantInfo);
 
             // Validate response
             if (response == null || response.getData() == null) {
@@ -121,7 +135,13 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
             }
 
             // Extract MD5 from response
-            String md5 = response.getData().getMd5();
+
+            log.info("md5 debug:{}",response.getData());
+
+            String json=objectMapper.writeValueAsString(response.getData());
+            BakongQrData data = objectMapper.readValue(json, BakongQrData.class);
+
+            String md5 = data.getMd5();
             if (md5 == null || md5.isBlank()) {
                 log.error("[BAKONG TOP-UP] MD5 hash is null or empty - userId={}", userId);
                 throw new QRGenerationException("Failed to get MD5 hash from KHQR response");
@@ -144,7 +164,7 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
             log.info("[BAKONG TOP-UP] Top-up record created - topUpId={}, userId={}, amount={}",
                     topUp.getId(), userId, amount);
 
-            return response;
+            return data;
 
         } catch (ResourceNotFoundException | BadRequestException | QRGenerationException e) {
             // Re-throw known exceptions
@@ -163,7 +183,7 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
 
     @Override
     @Transactional
-    public TopUpBakongResponse checkTopUpTransaction(Long userId, CheckTopUpRequest checkTopUpRequest) {
+    public void checkTopUpTransaction(Long userId, CheckTopUpRequest checkTopUpRequest) {
         log.info("[BAKONG TOP-UP] Starting transaction check - userId={}, md5={}", 
                 userId, checkTopUpRequest.getHash());
 
@@ -191,25 +211,15 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
                     bakongConfig.getConnectionTimeout(), pollIntervalMs);
 
             // Pre-build URL and headers outside the loop
-            String url = baseUrl.replaceAll("/+$", "") + "/v1/check_transaction_by_md5";
+            String url = baseUrl.replaceAll("/+$", "") + "/bakong/verifyMD5";
             String bearerToken;
 
-            try {
-                bearerToken = bakongTokenService.getToken();
-                if (bearerToken == null || bearerToken.isBlank()) {
-                    throw new BakongApiException("Failed to obtain Bakong authentication token");
-                }
-            } catch (Exception e) {
-                log.error("[BAKONG TOP-UP] Failed to get authentication token - error={}", e.getMessage(), e);
-                throw new BakongApiException("Failed to authenticate with Bakong API", e);
-            }
 
             log.debug("[BAKONG TOP-UP] Bakong API URL - {}", url);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-            headers.setBearerAuth(bearerToken);
 
             Map<String, String> body = Map.of("md5", checkTopUpRequest.getHash());
             HttpEntity<Map<String, String>> entity = new HttpEntity<>(body, headers);
@@ -222,7 +232,7 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
             } catch (Exception e) {
                 log.error("[BAKONG TOP-UP] Failed to create top-up record - userId={}, error={}",
                         userId, e.getMessage(), e);
-                throw new TransactionCheckException("Failed to initialize top-up record", e);
+                throw new TransactionCheckException("Failed to find hash md5 top-up record", e);
             }
 
             // Polling loop
@@ -252,14 +262,14 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
                         Thread.sleep(pollIntervalMs);
                         continue;
                     }
-
+                    log.debug("all response:{}", responseBody);
                     log.debug("[BAKONG TOP-UP] Received response - md5={}, body={}", 
                             checkTopUpRequest.getHash(), responseBody);
 
                     TopUpBakongResponse bakongResponse = mapper.readValue(responseBody, TopUpBakongResponse.class);
                     int status = bakongResponse.getResponseCode();
                     log.debug("[BAKONG TOP-UP] Response status code - md5={}, status={}, message={}",
-                            checkTopUpRequest.getHash(), status, bakongResponse.getMessage());
+                            checkTopUpRequest.getHash(), status, bakongResponse.getResponseMessage());
 
                     // Handle terminal states
                     switch (status) {
@@ -267,19 +277,19 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
                             log.info("[BAKONG TOP-UP] Payment SUCCESS - md5={}, userId={}",
                                     checkTopUpRequest.getHash(), userId);
                             markSuccessAsync(topUp.getId());
-                            return bakongResponse;
+                            return;
                         }
                         case 15 -> {
                             log.warn("[BAKONG TOP-UP] Payment FAILED - md5={}, userId={}",
                                     checkTopUpRequest.getHash(), userId);
                             markFailureAsync(TopUpStatus.FAILED, topUp.getId(), "Transaction failed");
-                            return bakongResponse;
+                            return;
                         }
                         case 46 -> {
                             log.warn("[BAKONG TOP-UP] Payment EXPIRED - md5={}, userId={}",
                                     checkTopUpRequest.getHash(), userId);
                             markFailureAsync(TopUpStatus.EXPIRED, topUp.getId(), "Transaction expired");
-                            return bakongResponse;
+                            return;
                         }
                         default -> {
                             // PENDING — wait and retry

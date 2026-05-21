@@ -39,10 +39,10 @@ spring:
 
 # ── MinIO Configuration ────────────────────────────────────────────────────────
 minio:
-  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
-  access-key: ${MINIO_ACCESS_KEY:minioadmin}
-  secret-key: ${MINIO_SECRET_KEY:minioadmin}
-  bucket-name: ${MINIO_BUCKET_NAME:busapp-profiles}
+  endpoint: ${MINIO_ENDPOINT:https://bucket-production-968b.up.railway.app:443"}
+  access-key: ${MINIO_ACCESS_KEY:Ibc7VidQNVyjs5O6BTSofAJZwipsVj5b}
+  secret-key: ${MINIO_SECRET_KEY:zRj2DOKqYGtz3nn8yVtCh6rSb1QQAhv5uw0xJYlrBjZaOW01}
+  bucket-name: ${MINIO_BUCKET_NAME:go-bus-bucket}
 
 # ── Bakong Configuration ───────────────────────────────────────────────────────
 bakong:

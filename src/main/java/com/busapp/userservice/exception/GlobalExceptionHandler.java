@@ -120,7 +120,7 @@ public class GlobalExceptionHandler {
             TransactionCheckException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ErrorResponse.builder()
                 .endpoint(request.getRequestURI())
-                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .status(HttpStatus.NOT_FOUND.value())
                 .error("Transaction Check Failed")
                 .message(ex.getMessage())
                 .build());

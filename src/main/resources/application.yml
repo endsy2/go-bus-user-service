@@ -11,10 +11,10 @@ spring:
 #    driver-class-name: org.postgresql.Driver
 #    username: ${POSTGRES_USER:neondb_owner}
 #    password: ${POSTGRES_PASSWORD:npg_MLKJPNA8nEu2}
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:busbooking}
+    url: jdbc:postgresql://${POSTGRES_HOST:yamabiko.proxy.rlwy.net}:${POSTGRES_PORT:54188}/${POSTGRES_DB:railway}
     driver-class-name: org.postgresql.Driver
     username: ${POSTGRES_USER:postgres}
-    password: ${POSTGRES_PASSWORD:postgres}
+    password: ${POSTGRES_PASSWORD:mHKXnSqKeHzmLEpoVvmeVnUETNvBlGfO}
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
