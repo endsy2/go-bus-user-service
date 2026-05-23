@@ -268,8 +268,8 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
                             checkTopUpRequest.getHash(), responseBody);
 
                     TopUpBakongResponse bakongResponse = mapper.readValue(responseBody, TopUpBakongResponse.class);
-                    BakongCheckTopUpResponse response = objectMapper.convertValue(bakongResponse.getData(), BakongCheckTopUpResponse.class);
-                    log.debug("[BAKONG TOP-UP] Response status code - md5={}, status={}, message={}",
+                    BakongCheckTopUpResponse response=objectMapper.convertValue(bakongResponse, BakongCheckTopUpResponse.class);
+                    log.debug("[BAKONG TOP-UP] Response status code - md5= BakongCheckTopUpResponse response = objectMapper.convertValue(bakongResponse.getData(), BakongCheckTopUpResponse.class);{}, status={}, message={}",
                             checkTopUpRequest.getHash(), response.getStatus(), bakongResponse.getResponseMessage());
 
                     // Handle terminal states

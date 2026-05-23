@@ -75,10 +75,7 @@ public class WalletController {
      * Get current user's wallet - Requires wallet session
      */
     @GetMapping("/me")
-    public ResponseEntity<ApiResponse<WalletResponse>> getCurrentUserWallet(
-            @RequestHeader("X-Wallet-Session") String walletSessionToken) {
-        
-        walletSessionUtil.validateAndRefreshSession(walletSessionToken);
+    public ResponseEntity<ApiResponse<WalletResponse>> getCurrentUserWallet() {
         
         return ResponseEntity.ok(
                 ApiResponse.of(
