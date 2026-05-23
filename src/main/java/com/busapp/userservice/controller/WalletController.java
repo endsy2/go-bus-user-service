@@ -5,6 +5,7 @@ import com.busapp.userservice.dto.request.TransactionFilterRequest;
 import com.busapp.userservice.dto.request.WalletLoginRequest;
 import com.busapp.userservice.dto.request.WalletTransactionRequest;
 import com.busapp.userservice.dto.response.ApiResponse;
+import com.busapp.userservice.dto.response.WalletBalanceResponse;
 import com.busapp.userservice.dto.response.WalletResponse;
 import com.busapp.userservice.dto.response.WalletTransactionResponse;
 import com.busapp.userservice.model.enums.TransactionStatus;
@@ -76,12 +77,23 @@ public class WalletController {
      */
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<WalletResponse>> getCurrentUserWallet() {
-        
+
         return ResponseEntity.ok(
                 ApiResponse.of(
                         "Wallet retrieved successfully",
                         walletService.userCurrentWallet()
                 ));
+    }
+    @GetMapping("my-balance")
+    public ResponseEntity<ApiResponse<WalletBalanceResponse>>getCurrentUserWalletBalance() {
+        Long userId=userUtil.getCurrentUserId();
+        return ResponseEntity.ok(
+                ApiResponse.of(
+                        "Wallet retrieved successfully",
+                        walletService.getCurrentUserBalance(userId)
+
+                )
+        );
     }
 
     /**

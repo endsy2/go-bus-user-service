@@ -4,6 +4,7 @@ import com.busapp.userservice.dto.admin.PagedResponse;
 import com.busapp.userservice.dto.request.TransactionFilterRequest;
 import com.busapp.userservice.dto.request.WalletFilterRequest;
 import com.busapp.userservice.dto.request.WalletLoginRequest;
+import com.busapp.userservice.dto.response.WalletBalanceResponse;
 import com.busapp.userservice.dto.response.WalletResponse;
 import com.busapp.userservice.dto.response.WalletTransactionResponse;
 import com.busapp.userservice.exception.BadRequestException;
@@ -297,5 +298,13 @@ public class WalletServiceImpl implements WalletService {
                 userId, amount, userWallet.getBalance());
         
         return walletMapper.toTransactionResponse(walletTransaction);
+    }
+
+    @Override
+    public WalletBalanceResponse getCurrentUserBalance(Long userId) {
+        UserWallet wallet=walletRepository.findByUserId(userId).orElseThrow(() -> new ResourceNotFoundException("Wallet not found for user: " + userId));
+        return WalletBalanceResponse.builder()
+                .balance(wallet.getBalance())
+                .build();
     }
 }
