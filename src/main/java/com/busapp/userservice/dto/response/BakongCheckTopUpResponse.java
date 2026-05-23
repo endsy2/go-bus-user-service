@@ -6,5 +6,6 @@ import java.time.Instant;
 
 @Data
 public class BakongCheckTopUpResponse {
-    private String status;
+    private com.busapp.userservice.dto.response.Data data;
 }
+

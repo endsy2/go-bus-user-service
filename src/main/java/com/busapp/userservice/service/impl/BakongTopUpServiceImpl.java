@@ -267,13 +267,12 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
                     log.debug("[BAKONG TOP-UP] Received response - md5={}, body={}", 
                             checkTopUpRequest.getHash(), responseBody);
 
-                    TopUpBakongResponse bakongResponse = mapper.readValue(responseBody, TopUpBakongResponse.class);
-                    BakongCheckTopUpResponse response=objectMapper.convertValue(bakongResponse, BakongCheckTopUpResponse.class);
-                    log.debug("[BAKONG TOP-UP] Response status code - md5= BakongCheckTopUpResponse response = objectMapper.convertValue(bakongResponse.getData(), BakongCheckTopUpResponse.class);{}, status={}, message={}",
-                            checkTopUpRequest.getHash(), response.getStatus(), bakongResponse.getResponseMessage());
+                    BakongCheckTopUpResponse response = mapper.readValue(responseBody, BakongCheckTopUpResponse.class);
+                    log.debug("[BAKONG TOP-UP] Response status code - md5= BakongCheckTopUpResponse response = objectMapper.convertValue(bakongResponse.getData(), BakongCheckTopUpResponse.class);{}, status={}",
+                            checkTopUpRequest.getHash(), response.getData().getStatus());
 
                     // Handle terminal states
-                    if (response.getStatus().equals("PAID")) {
+                    if (response.getData().getStatus().equals("PAID")) {
                         log.info("[BAKONG TOP-UP] Payment SUCCESS - md5={}, userId={}",
                                 checkTopUpRequest.getHash(), userId);
                         markSuccessAsync(topUp.getId());
@@ -292,7 +291,7 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
 //                        }
                     } else {// PENDING — wait and retry
                         log.debug("[BAKONG TOP-UP] Payment PENDING - md5={}, status={}, retrying in {}ms",
-                                checkTopUpRequest.getHash(), response.getStatus(), pollIntervalMs);
+                                checkTopUpRequest.getHash(), response.getData().getStatus(), pollIntervalMs);
                         Thread.sleep(pollIntervalMs);
                     }
 
