@@ -273,13 +273,11 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
                             checkTopUpRequest.getHash(), response.getStatus(), bakongResponse.getResponseMessage());
 
                     // Handle terminal states
-                    switch (response.getStatus()) {
-                        case "PAID" -> {
-                            log.info("[BAKONG TOP-UP] Payment SUCCESS - md5={}, userId={}",
-                                    checkTopUpRequest.getHash(), userId);
-                            markSuccessAsync(topUp.getId());
-                            return;
-                        }
+                    if (response.getStatus().equals("PAID")) {
+                        log.info("[BAKONG TOP-UP] Payment SUCCESS - md5={}, userId={}",
+                                checkTopUpRequest.getHash(), userId);
+                        markSuccessAsync(topUp.getId());
+                        return;
 //                        case 15 -> {
 //                            log.warn("[BAKONG TOP-UP] Payment FAILED - md5={}, userId={}",
 //                                    checkTopUpRequest.getHash(), userId);
@@ -292,12 +290,10 @@ public class BakongTopUpServiceImpl implements BakongTopUpService {
 //                            markFailureAsync(TopUpStatus.EXPIRED, topUp.getId(), "Transaction expired");
 //                            return;
 //                        }
-                        default -> {
-                            // PENDING — wait and retry
-                            log.debug("[BAKONG TOP-UP] Payment PENDING - md5={}, status={}, retrying in {}ms",
-                                    checkTopUpRequest.getHash(), response.getStatus(), pollIntervalMs);
-                            Thread.sleep(pollIntervalMs);
-                        }
+                    } else {// PENDING — wait and retry
+                        log.debug("[BAKONG TOP-UP] Payment PENDING - md5={}, status={}, retrying in {}ms",
+                                checkTopUpRequest.getHash(), response.getStatus(), pollIntervalMs);
+                        Thread.sleep(pollIntervalMs);
                     }
 
                 } catch (InterruptedException e) {
