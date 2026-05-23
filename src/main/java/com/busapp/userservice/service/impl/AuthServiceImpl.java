@@ -16,6 +16,7 @@ import com.busapp.userservice.model.Role;
 import com.busapp.userservice.model.User;
 import com.busapp.userservice.model.UserWallet;
 import com.busapp.userservice.model.enums.Currency;
+import com.busapp.userservice.repository.RoleRepository;
 import com.busapp.userservice.repository.UserRepository;
 import com.busapp.userservice.repository.UserWalletRepository;
 import com.busapp.userservice.security.JwtUtil;
@@ -48,6 +49,7 @@ public class AuthServiceImpl implements AuthService {
     private final WalletMapper walletMapper;
     private final UserWalletRepository userWalletRepository;
     private final WalletServiceImpl walletService;
+    private final RoleRepository  roleRepository;
     private final RolePermissionNameCacheService rolePermissionNameCacheService;
 
     // ── Register ──────────────────────────────────────────────────────────────
@@ -66,7 +68,9 @@ public class AuthServiceImpl implements AuthService {
             throw new DuplicateResourceException("Phone already registered: " + request.getPhone());
         }
         request.setIsEmployee(false);
+        request.setRoleId(2L);
         User user = userRepository.save(userMapper.toEntity(request));
+
 
 
 //        walletService.createWallet(user.getId());
