@@ -124,6 +124,9 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     public PagedResponse<WalletTransactionResponse> getTransactions(TransactionFilterRequest filter, int page, int size) {
+        if(page<1){
+            page=1;
+        }
         Page<WalletTransaction> transactionPage = transactionRepository.findAll(
                 TransactionSpecification.filterBy(filter),
                 PageRequest.of(page-1, size)

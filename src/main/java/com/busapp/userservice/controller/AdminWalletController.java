@@ -121,8 +121,6 @@ public class AdminWalletController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-
-
         TransactionFilterRequest filter = TransactionFilterRequest.builder()
                 .walletId(walletId)
                 .type(type)
