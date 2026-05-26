@@ -23,10 +23,12 @@ import com.busapp.userservice.security.JwtUtil;
 import com.busapp.userservice.security.RedisTokenService;
 import com.busapp.userservice.service.AuthService;
 import com.busapp.userservice.service.RolePermissionNameCacheService;
+import com.busapp.userservice.service.WalletService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -37,6 +39,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
@@ -48,7 +51,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final WalletMapper walletMapper;
     private final UserWalletRepository userWalletRepository;
-    private final WalletServiceImpl walletService;
+    private final WalletService walletService;
     private final RoleRepository  roleRepository;
     private final RolePermissionNameCacheService rolePermissionNameCacheService;
 
@@ -57,24 +60,26 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public RegisterResponse register(UserRequest request) {
+        log.info("[AUTH] Register attempt - email={}, userName={}", request.getEmail(), request.getUserName());
+
         if (userRepository.existsByEmail(request.getEmail())) {
+            log.warn("[AUTH] Register failed - email already registered: {}", request.getEmail());
             throw new DuplicateResourceException("Email already registered: " + request.getEmail());
         }
         if (userRepository.existsByUserName(request.getUserName())) {
+            log.warn("[AUTH] Register failed - username already taken: {}", request.getUserName());
             throw new DuplicateResourceException("Username already taken: " + request.getUserName());
         }
-
-        if(userRepository.findByPhone(request.getPhone()).isPresent()){
+        if (userRepository.findByPhone(request.getPhone()).isPresent()) {
+            log.warn("[AUTH] Register failed - phone already registered: {}", request.getPhone());
             throw new DuplicateResourceException("Phone already registered: " + request.getPhone());
         }
+
         request.setIsEmployee(false);
         request.setRoleId(2L);
         User user = userRepository.save(userMapper.toEntity(request));
 
-
-
-//        walletService.createWallet(user.getId());
-
+        log.info("[AUTH] User registered successfully - userId={}, email={}", user.getId(), user.getEmail());
         return RegisterResponse.builder()
                 .userId(user.getId())
                 .userName(user.getUserName())
@@ -86,13 +91,20 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse login(AuthRequest request) {
+        log.info("[AUTH] Login attempt - email={}", request.getEmail());
+
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("Invalid email or password."));
+                .orElseThrow(() -> {
+                    log.warn("[AUTH] Login failed - email not found: {}", request.getEmail());
+                    return new ResourceNotFoundException("Invalid email or password.");
+                });
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            log.warn("[AUTH] Login failed - wrong password for email={}", request.getEmail());
             throw new ResourceNotFoundException("Invalid email or password.");
         }
 
+        log.info("[AUTH] Login successful - userId={}, email={}", user.getId(), user.getEmail());
         return issueTokenPair(user);
     }
 
@@ -105,10 +117,12 @@ public class AuthServiceImpl implements AuthService {
         try {
             claims = jwtUtil.parseToken(refreshToken);
         } catch (JwtException e) {
+            log.warn("[AUTH] Token refresh failed - invalid or expired refresh token");
             throw new ResourceNotFoundException("Invalid or expired refresh token.");
         }
 
         if (!"refresh".equals(claims.get("type"))) {
+            log.warn("[AUTH] Token refresh failed - not a refresh token");
             throw new ResourceNotFoundException("Provided token is not a refresh token.");
         }
 
@@ -117,18 +131,21 @@ public class AuthServiceImpl implements AuthService {
         // 2. Verify against Redis (one active refresh token per user)
         String stored = redisTokenService.getRefreshToken(userId);
         if (stored == null || !stored.equals(refreshToken)) {
+            log.warn("[AUTH] Token refresh failed - token revoked or replaced for userId={}", userId);
             throw new ResourceNotFoundException("Refresh token has been revoked or replaced.");
         }
 
-        // 3. Load user and rotate tokens
+        // 3. Load user and issue new access token
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found."));
 
+        log.info("[AUTH] Token refreshed successfully - userId={}", userId);
         return new RefreshTokenResponse(jwtUtil.generateAccessToken(
-                userId
-                ,user.getEmail()
-                ,user.getUserName(),user.getRoles().stream().map(Role::getName).toList()
-                ,user.getRoles().stream().flatMap(role -> role.getPermissions().stream()).map(Permission::getName).toList()));
+                userId,
+                user.getEmail(),
+                user.getUserName(),
+                user.getRoles().stream().map(Role::getName).toList(),
+                user.getRoles().stream().flatMap(role -> role.getPermissions().stream()).map(Permission::getName).toList()));
     }
 
     // ── Logout ────────────────────────────────────────────────────────────────
@@ -142,15 +159,19 @@ public class AuthServiceImpl implements AuthService {
 
             Long userId = jwtUtil.getUserId(accessToken);
             redisTokenService.deleteRefreshToken(userId);
+            log.info("[AUTH] Logout successful - userId={}, tokenBlacklistedForMs={}", userId, ttl);
         }
         // If only refresh token is provided (access token already expired)
         else if (refreshToken != null) {
             try {
                 Long userId = jwtUtil.getUserId(refreshToken);
                 redisTokenService.deleteRefreshToken(userId);
+                log.info("[AUTH] Logout via refresh token - userId={}", userId);
             } catch (JwtException ignored) {
-                // Token already invalid — nothing to revoke
+                log.debug("[AUTH] Logout called with already-invalid token — nothing to revoke");
             }
+        } else {
+            log.debug("[AUTH] Logout called with no valid tokens — no action taken");
         }
     }
 
