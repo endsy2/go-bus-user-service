@@ -16,6 +16,9 @@ public interface BookingClient {
                                             @RequestParam LocalDate startDate,
                                             @RequestParam LocalDate endDate);
 
+    @GetMapping("/api/internal/bookings/user-detail-stats")
+    Map<String, Object> getUserDetailStats(@RequestParam Long userId);
+
     @GetMapping("/api/internal/bookings/active-users")
     List<Map<String, Object>> getActiveUsers(@RequestParam LocalDate startDate,
                                              @RequestParam LocalDate endDate);

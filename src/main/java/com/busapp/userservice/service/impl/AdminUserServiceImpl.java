@@ -1,5 +1,6 @@
 package com.busapp.userservice.service.impl;
 
+import com.busapp.userservice.client.BookingClient;
 import com.busapp.userservice.dto.admin.*;
 import com.busapp.userservice.exception.BadRequestException;
 import com.busapp.userservice.exception.ResourceNotFoundException;
@@ -19,6 +20,7 @@ import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -28,11 +30,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminUserServiceImpl implements AdminUserService {
@@ -42,6 +46,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final UserWalletRepository      userWalletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
     private final PasswordEncoder           passwordEncoder;
+    private final BookingClient             bookingClient;
 
     // ── List / Filter ─────────────────────────────────────────────────────────
 
@@ -109,7 +114,9 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Override
     public AdminUserResponse getUserById(Long userId) {
-        return toAdminResponse(findUser(userId));
+        AdminUserResponse response = toAdminResponse(findUser(userId));
+        response.setBookingStats(fetchBookingStats(userId));
+        return response;
     }
 
     // ── Update User Info ──────────────────────────────────────────────────────
@@ -268,6 +275,74 @@ public class AdminUserServiceImpl implements AdminUserService {
     private User findUser(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+    }
+
+    /**
+     * Fetches lifetime booking + ticket stats from booking-service.
+     * Returns a zero-filled object on failure so the detail view stays usable
+     * if booking-service is briefly unreachable.
+     */
+    private UserBookingStatsResponse fetchBookingStats(Long userId) {
+        try {
+            Map<String, Object> raw = bookingClient.getUserDetailStats(userId);
+            if (raw == null) {
+                return emptyBookingStats();
+            }
+            return UserBookingStatsResponse.builder()
+                    .totalBookings(asLong(raw.get("totalBookings")))
+                    .confirmedBookings(asLong(raw.get("confirmedBookings")))
+                    .cancelledBookings(asLong(raw.get("cancelledBookings")))
+                    .refundedBookings(asLong(raw.get("refundedBookings")))
+                    .pendingBookings(asLong(raw.get("pendingBookings")))
+                    .totalSpent(asBigDecimal(raw.get("totalSpent")))
+                    .averageBookingValue(asBigDecimal(raw.get("averageBookingValue")))
+                    .activeTickets(asLong(raw.get("activeTickets")))
+                    .usedTickets(asLong(raw.get("usedTickets")))
+                    .firstBookingDate(asDateTime(raw.get("firstBookingDate")))
+                    .lastBookingDate(asDateTime(raw.get("lastBookingDate")))
+                    .build();
+        } catch (Exception e) {
+            log.warn("Failed to fetch booking stats for user {}: {}", userId, e.getMessage());
+            return emptyBookingStats();
+        }
+    }
+
+    private UserBookingStatsResponse emptyBookingStats() {
+        return UserBookingStatsResponse.builder()
+                .totalBookings(0L)
+                .confirmedBookings(0L)
+                .cancelledBookings(0L)
+                .refundedBookings(0L)
+                .pendingBookings(0L)
+                .totalSpent(BigDecimal.ZERO)
+                .averageBookingValue(BigDecimal.ZERO)
+                .activeTickets(0L)
+                .usedTickets(0L)
+                .build();
+    }
+
+    private Long asLong(Object v) {
+        if (v == null) return 0L;
+        if (v instanceof Number n) return n.longValue();
+        return Long.parseLong(v.toString());
+    }
+
+    private BigDecimal asBigDecimal(Object v) {
+        if (v == null) return BigDecimal.ZERO;
+        if (v instanceof BigDecimal bd) return bd;
+        if (v instanceof Number n) return BigDecimal.valueOf(n.doubleValue());
+        return new BigDecimal(v.toString());
+    }
+
+    private LocalDateTime asDateTime(Object v) {
+        if (v == null) return null;
+        if (v instanceof LocalDateTime ldt) return ldt;
+        try {
+            return LocalDateTime.parse(v.toString());
+        } catch (Exception e) {
+            log.debug("Could not parse booking date '{}': {}", v, e.getMessage());
+            return null;
+        }
     }
 
     private AdminUserResponse toAdminResponse(User user) {
