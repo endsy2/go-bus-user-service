@@ -76,5 +76,4 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
             nativeQuery = true)
     List<Object[]> findBasicByIdsNative(@Param("ids") Set<Long> ids);
 
-    List<Long> id(Long id);
 }

@@ -29,7 +29,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,7 +36,6 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
 import java.math.BigDecimal;
-import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -56,45 +54,12 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final WalletTransactionRepository  walletTransactionRepository;
     private final PasswordEncoder              passwordEncoder;
     private final BookingClient                bookingClient;
-    private final JdbcTemplate                 jdbcTemplate;
     private final StringRedisTemplate          stringRedisTemplate;
     private final ObjectMapper                 objectMapper;
 
     // ── Redis key / TTL constants ─────────────────────────────────────────────
     private static final String BOOKING_STATS_KEY_PREFIX  = "admin:booking-stats:";
     private static final long   BOOKING_STATS_TTL_SECONDS = 300L; // 5 minutes
-
-    // ── Native SQL: user + wallet + roles + permissions in one round-trip ─────
-    // No schema prefix needed — search_path is set to user_service via HikariCP
-    // connection-init-sql so every JDBC connection already knows the right schema.
-    private static final String USER_DETAIL_SQL =
-            "SELECT " +
-            "  u.id, " +
-            "  u.\"userName\", " +
-            "  u.\"fullName\", " +
-            "  u.email, " +
-            "  u.phone, " +
-            "  u.image, " +
-            "  u.gender, " +
-            "  u.\"googleId\", " +
-            "  u.active, " +
-            "  u.\"createdAt\", " +
-            "  u.\"updatedAt\", " +
-            "  w.balance            AS wallet_balance, " +
-            "  w.status             AS wallet_status, " +
-            "  w.currency           AS wallet_currency, " +
-            "  STRING_AGG(DISTINCT r.name, ',')  AS roles, " +
-            "  STRING_AGG(DISTINCT p.name, ',')  AS permissions " +
-            "FROM   \"user_service\".\"user\" u " +
-            "LEFT   JOIN \"user_service\".\"user_wallet\" w      ON w.\"userId\"   = u.id " +
-            "LEFT   JOIN \"user_service\".\"user_role\" ur        ON ur.\"userId\"  = u.id " +
-            "LEFT   JOIN \"user_service\".\"role\" r             ON r.id           = ur.\"roleId\" " +
-            "LEFT   JOIN \"user_service\".\"role_permission\" rp  ON rp.\"roleId\"  = r.id " +
-            "LEFT   JOIN \"user_service\".\"permission\" p       ON p.id           = rp.\"permissionId\" " +
-            "WHERE  u.id = ? " +
-            "GROUP  BY u.id, u.\"userName\", u.\"fullName\", u.email, u.phone, u.image, " +
-            "          u.gender, u.\"googleId\", u.active, u.\"createdAt\", u.\"updatedAt\", " +
-            "          w.balance, w.status, w.currency";
 
     // ── List / Filter ─────────────────────────────────────────────────────────
 
@@ -162,12 +127,13 @@ public class AdminUserServiceImpl implements AdminUserService {
     // ── Get by ID ─────────────────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public AdminUserResponse getUserById(Long userId) {
         // Propagate Spring request context so the Feign interceptor (which reads
         // RequestContextHolder) works correctly on the async thread.
         RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
 
-        // Start booking-stats fetch in parallel — hits Redis first, Feign only on miss.
+        // Fetch booking stats in parallel — hits Redis first, Feign only on miss.
         // Hard 2-second timeout: if booking-service is cold/slow the detail view
         // still returns immediately with zeroed stats.
         CompletableFuture<UserBookingStatsResponse> statsFuture = CompletableFuture
@@ -190,10 +156,12 @@ public class AdminUserServiceImpl implements AdminUserService {
                     return emptyBookingStats();
                 });
 
-        // Single native SQL: user + wallet + roles + permissions — no ORM overhead,
-        // no N+1, one DB round-trip regardless of how many roles/permissions the user has.
-        AdminUserResponse response = loadUserDetail(userId);
+        // Single JPQL query with LEFT JOIN FETCH:
+        // loads user + roles + permissions + wallet in one round-trip — no N+1, no JdbcTemplate.
+        User user = userRepository.findDetailById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
 
+        AdminUserResponse response = toAdminDetailResponse(user);
         response.setBookingStats(statsFuture.join());
         return response;
     }
@@ -343,73 +311,6 @@ public class AdminUserServiceImpl implements AdminUserService {
         userRepository.deleteById(userId);
     }
 
-    // ── Native-SQL detail loader (replaces findDetailById + ORM mapping) ──────
-
-    /**
-     * Loads user + wallet + roles + permissions in a single PostgreSQL query using
-     * STRING_AGG — no JPA entity loading, no lazy-init exceptions, no N+1 queries.
-     * Typical execution time on Railway: 3–15 ms (vs. 200–800 ms with ORM + JOINs).
-     */
-    private AdminUserResponse loadUserDetail(Long userId) {
-        AdminUserResponse result = jdbcTemplate.query(USER_DETAIL_SQL, rs -> {
-            if (!rs.next()) {
-                return null; // handled below
-            }
-
-            AdminUserResponse.AdminUserResponseBuilder b = AdminUserResponse.builder()
-                    .id(rs.getLong("id"))
-                    .userName(rs.getString("userName"))
-                    .fullName(rs.getString("fullName"))
-                    .email(rs.getString("email"))
-                    .phone(rs.getString("phone"))
-                    .image(rs.getString("image"))
-                    .googleId(rs.getString("googleId"))
-                    .active(rs.getBoolean("active"));
-
-            // Gender (nullable enum stored as VARCHAR)
-            String genderStr = rs.getString("gender");
-            if (genderStr != null) {
-                try { b.gender(Gender.valueOf(genderStr)); } catch (IllegalArgumentException ignored) {}
-            }
-
-            // Timestamps
-            Timestamp createdAt = rs.getTimestamp("createdAt");
-            if (createdAt != null) b.createdAt(createdAt.toLocalDateTime());
-            Timestamp updatedAt = rs.getTimestamp("updatedAt");
-            if (updatedAt != null) b.updatedAt(updatedAt.toLocalDateTime());
-
-            // Wallet (nullable LEFT JOIN result)
-            String walletStatus = rs.getString("wallet_status");
-            if (walletStatus != null) {
-                b.walletBalance(rs.getDouble("wallet_balance"))
-                 .walletStatus(walletStatus)
-                 .walletCurrency(rs.getString("wallet_currency"));
-            }
-
-            // Roles + permissions from STRING_AGG (null when user has no roles)
-            String rolesAgg = rs.getString("roles");
-            if (rolesAgg != null && !rolesAgg.isBlank()) {
-                b.roles(Arrays.asList(rolesAgg.split(",")));
-            } else {
-                b.roles(Collections.emptyList());
-            }
-
-            String permsAgg = rs.getString("permissions");
-            if (permsAgg != null && !permsAgg.isBlank()) {
-                b.permissions(Arrays.asList(permsAgg.split(",")));
-            } else {
-                b.permissions(Collections.emptyList());
-            }
-
-            return b.build();
-        }, userId);
-
-        if (result == null) {
-            throw new ResourceNotFoundException("User not found: " + userId);
-        }
-        return result;
-    }
-
     // ── Redis-cached booking stats ────────────────────────────────────────────
 
     /**
@@ -449,7 +350,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         return stats;
     }
 
-    // ── ORM helpers (used by write endpoints: update, adjust wallet, etc.) ────
+    // ── ORM helpers ───────────────────────────────────────────────────────────
 
     private User findUser(Long userId) {
         return userRepository.findById(userId)
@@ -499,7 +400,51 @@ public class AdminUserServiceImpl implements AdminUserService {
         return new BigDecimal(v.toString());
     }
 
-    // ── ORM mappers (used by write-path endpoints that return AdminUserResponse) ─
+    // ── ORM mappers ───────────────────────────────────────────────────────────
+
+    /**
+     * Full detail mapper used by {@code getUserById}.
+     * Roles + permissions + wallet are pre-loaded via JOIN FETCH in
+     * {@link com.busapp.userservice.repository.UserRepository#findDetailById}.
+     * No lazy-load will fire here.
+     */
+    private AdminUserResponse toAdminDetailResponse(User user) {
+        AdminUserResponse.AdminUserResponseBuilder builder = AdminUserResponse.builder()
+                .id(user.getId())
+                .userName(user.getUserName())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .image(user.getImage())
+                .gender(user.getGender())
+                .googleId(user.getGoogleId())
+                .active(Boolean.TRUE.equals(user.getActive()))
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt());
+
+        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+            builder.roles(user.getRoles().stream()
+                    .map(Role::getName)
+                    .collect(Collectors.toList()));
+            builder.permissions(user.getRoles().stream()
+                    .flatMap(r -> r.getPermissions().stream())
+                    .map(p -> p.getName())
+                    .distinct()
+                    .collect(Collectors.toList()));
+        } else {
+            builder.roles(Collections.emptyList());
+            builder.permissions(Collections.emptyList());
+        }
+
+        if (user.getWallet() != null) {
+            UserWallet w = user.getWallet();
+            builder.walletBalance(w.getBalance())
+                    .walletStatus(w.getStatus().name())
+                    .walletCurrency(w.getCurrency().toString());
+        }
+
+        return builder.build();
+    }
 
     /**
      * Lightweight mapper for the paginated list endpoint.
@@ -532,10 +477,9 @@ public class AdminUserServiceImpl implements AdminUserService {
     }
 
     /**
-     * Full ORM mapper used by write-path single-user endpoints (update, role
-     * assignment, wallet ops, etc.) where roles and permissions are needed.
-     * The caller is responsible for loading the user via a JOIN FETCH query
-     * (e.g. {@code findByIdWithRolesAndPermissions}) before passing it here.
+     * Mapper used by write-path single-user endpoints (update, role assignment,
+     * wallet ops, etc.). The caller is responsible for loading the user via a
+     * JOIN FETCH query before passing it here when roles/permissions are needed.
      */
     private AdminUserResponse toAdminResponse(User user) {
         AdminUserResponse.AdminUserResponseBuilder builder = AdminUserResponse.builder()
@@ -544,6 +488,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                 .fullName(user.getFullName())
                 .email(user.getEmail())
                 .phone(user.getPhone())
+                .image(user.getImage())
                 .gender(user.getGender())
                 .googleId(user.getGoogleId())
                 .active(Boolean.TRUE.equals(user.getActive()))
