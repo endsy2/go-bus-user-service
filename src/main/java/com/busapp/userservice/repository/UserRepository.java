@@ -41,6 +41,18 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     Optional<User> findByIdWithRolesAndPermissions(@Param("id") Long id);
 
     /**
+     * Admin user-detail view: fetches user + roles + permissions + wallet in a single round-trip.
+     * Replaces 4 separate SELECTs (user, roles, per-role permissions N+1, wallet) for the
+     * admin getUserById endpoint.
+     */
+    @Query("SELECT DISTINCT u FROM User u " +
+           "LEFT JOIN FETCH u.roles r " +
+           "LEFT JOIN FETCH r.permissions " +
+           "LEFT JOIN FETCH u.wallet " +
+           "WHERE u.id = :id")
+    Optional<User> findDetailById(@Param("id") Long id);
+
+    /**
      * Fetch only basic user fields using native SQL query.
      * This avoids loading the entire User entity and its relationships.
      * Only selects: id, userName, fullName, email, phone

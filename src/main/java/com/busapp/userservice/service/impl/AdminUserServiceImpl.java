@@ -30,10 +30,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -113,9 +117,32 @@ public class AdminUserServiceImpl implements AdminUserService {
     // ── Get by ID ─────────────────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public AdminUserResponse getUserById(Long userId) {
-        AdminUserResponse response = toAdminResponse(findUser(userId));
-        response.setBookingStats(fetchBookingStats(userId));
+        // Kick off the cross-service stats call in parallel with the DB load.
+        // The Feign interceptor reads from RequestContextHolder (thread-local), so we
+        // hand the request attributes to the worker thread explicitly.
+        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+        CompletableFuture<UserBookingStatsResponse> statsFuture = CompletableFuture.supplyAsync(() -> {
+            try {
+                if (requestAttributes != null) {
+                    RequestContextHolder.setRequestAttributes(requestAttributes);
+                }
+                return fetchBookingStats(userId);
+            } finally {
+                if (requestAttributes != null) {
+                    RequestContextHolder.resetRequestAttributes();
+                }
+            }
+        });
+
+        // One round-trip: user + roles + permissions + wallet (no N+1, no lazy wallet hit).
+        User user = userRepository.findDetailById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+        AdminUserResponse response = toAdminResponse(user);
+
+        // Join with the in-flight Feign call. join() rethrows any unchecked exception.
+        response.setBookingStats(statsFuture.join());
         return response;
     }
 
