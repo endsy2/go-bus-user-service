@@ -65,14 +65,14 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
      * This avoids loading the entire User entity and its relationships.
      * Only selects: id, userName, fullName, email, phone
      */
-    @Query(value = "SELECT u.id, u.user_name, u.full_name, u.email, u.phone FROM user_service.user u WHERE u.id =:id",
+    @Query(value = "SELECT u.id, u.user_name, u.full_name, u.email, u.phone FROM \"user_service\".\"user\" u WHERE u.id =:id",
             nativeQuery = true)
     Optional<Object[]> findBasicByIdNative(@Param("id") Long id);
 
     /**
      * Fetch basic user fields for multiple users using native SQL.
      */
-    @Query(value = "SELECT u.id, u.user_name, u.full_name, u.email, u.phone FROM user_service.user u WHERE u.id IN (:ids)",
+    @Query(value = "SELECT u.id, u.user_name, u.full_name, u.email, u.phone FROM \"user_service\".\"user\" u WHERE u.id IN (:ids)",
             nativeQuery = true)
     List<Object[]> findBasicByIdsNative(@Param("ids") Set<Long> ids);
 

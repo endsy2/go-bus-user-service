@@ -85,12 +85,12 @@ public class AdminUserServiceImpl implements AdminUserService {
             "  w.currency           AS wallet_currency, " +
             "  STRING_AGG(DISTINCT r.name, ',')  AS roles, " +
             "  STRING_AGG(DISTINCT p.name, ',')  AS permissions " +
-            "FROM   \"user_service.user\" u " +
-            "LEFT   JOIN \"user_service.user_wallet\" w      ON w.\"userId\"   = u.id " +
-            "LEFT   JOIN \"user_service.user_role\" ur        ON ur.\"userId\"  = u.id " +
-            "LEFT   JOIN \"user_service.role\" r             ON r.id           = ur.\"roleId\" " +
-            "LEFT   JOIN \"user_service.role_permission\" rp  ON rp.\"roleId\"  = r.id " +
-            "LEFT   JOIN \"user_service.permission\" p       ON p.id           = rp.\"permissionId\" " +
+            "FROM   \"user_service\".\"user\" u " +
+            "LEFT   JOIN \"user_service\".\"user_wallet\" w      ON w.\"userId\"   = u.id " +
+            "LEFT   JOIN \"user_service\".\"user_role\" ur        ON ur.\"userId\"  = u.id " +
+            "LEFT   JOIN \"user_service\".\"role\" r             ON r.id           = ur.\"roleId\" " +
+            "LEFT   JOIN \"user_service\".\"role_permission\" rp  ON rp.\"roleId\"  = r.id " +
+            "LEFT   JOIN \"user_service\".\"permission\" p       ON p.id           = rp.\"permissionId\" " +
             "WHERE  u.id = ? " +
             "GROUP  BY u.id, u.\"userName\", u.\"fullName\", u.email, u.phone, u.image, " +
             "          u.gender, u.\"googleId\", u.active, u.\"createdAt\", u.\"updatedAt\", " +
