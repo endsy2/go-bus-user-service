@@ -30,15 +30,23 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     Optional<User> findByIdWithRoles(@Param("id") Long id);
 
     /**
-     * Optimized query to fetch user with roles and permissions in a single query.
-     * Uses JOIN FETCH to avoid N+1 query problem.
-     * Use this only when you need the full role-permission data without caching.
+     * Fetch user + roles + permissions in one query by ID (for token issuance / detail views).
      */
     @Query("SELECT DISTINCT u FROM User u " +
            "LEFT JOIN FETCH u.roles r " +
            "LEFT JOIN FETCH r.permissions " +
            "WHERE u.id = :id")
     Optional<User> findByIdWithRolesAndPermissions(@Param("id") Long id);
+
+    /**
+     * Same as above but keyed by email — used by login so we avoid a lazy-load
+     * of roles/permissions outside a transaction after the basic findByEmail.
+     */
+    @Query("SELECT DISTINCT u FROM User u " +
+           "LEFT JOIN FETCH u.roles r " +
+           "LEFT JOIN FETCH r.permissions " +
+           "WHERE u.email = :email")
+    Optional<User> findByEmailWithRolesAndPermissions(@Param("email") String email);
 
     /**
      * Admin user-detail view: fetches user + roles + permissions + wallet in a single round-trip.

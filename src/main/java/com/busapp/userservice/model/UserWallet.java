@@ -4,6 +4,7 @@ import com.busapp.userservice.model.enums.Currency;
 import com.busapp.userservice.model.enums.WalletStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
+@BatchSize(size = 25)   // batch-load wallets: 20 lazy hits → 1 IN-clause SELECT
 @Table(name = "\"UserWallet\"",
         indexes = @Index(name = "idx_wallet_user", columnList = "userId"))
 @Data

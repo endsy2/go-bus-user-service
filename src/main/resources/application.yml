@@ -15,6 +15,14 @@ spring:
     driver-class-name: org.postgresql.Driver
     username: ${POSTGRES_USER:postgres}
     password: ${POSTGRES_PASSWORD:mHKXnSqKeHzmLEpoVvmeVnUETNvBlGfO}
+    hikari:
+      maximum-pool-size: 20        # up from default 10 — handles bursts of admin queries
+      minimum-idle: 5              # keep 5 warm connections always ready
+      connection-timeout: 30000    # 30s max wait for a connection from pool
+      idle-timeout: 600000         # 10 min — close idle connections above min-idle
+      max-lifetime: 1800000        # 30 min — recycle connections to avoid stale ones
+      keepalive-time: 60000        # 1 min heartbeat ping to Railway's proxy
+      pool-name: UserServicePool
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
@@ -94,8 +102,8 @@ logging:
   level:
     root: INFO
     com.busapp.userservice: DEBUG
-    org.springframework.web: DEBUG
-    org.springframework.data.jpa: DEBUG
-    org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.web: INFO
+    org.springframework.data.jpa: INFO
+    org.springframework.security: INFO
+    org.hibernate.SQL: DEBUG          # still shows queries
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN   # was TRACE — logged every param value, huge overhead

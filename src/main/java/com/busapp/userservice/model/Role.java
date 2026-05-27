@@ -2,6 +2,7 @@ package com.busapp.userservice.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -36,13 +37,18 @@ public class Role {
     @Column(name = "\"createdAt\"", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    /** Permissions granted to this role. */
-    @ManyToMany(fetch = FetchType.EAGER)
+    /**
+     * Permissions granted to this role.
+     * LAZY — only loaded when explicitly accessed via JOIN FETCH queries.
+     * @BatchSize batches any remaining lazy hits into one IN-clause query.
+     */
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "\"RolePermission\"",
             joinColumns        = @JoinColumn(name = "\"roleId\""),
             inverseJoinColumns = @JoinColumn(name = "\"permissionId\"")
     )
+    @BatchSize(size = 25)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Set<Permission> permissions;

@@ -55,6 +55,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     // ── List / Filter ─────────────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public PagedResponse<AdminUserResponse> getUsers(AdminUserFilterRequest filter) {
         Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(),
                 Sort.by(Sort.Direction.DESC, "createdAt"));
@@ -103,7 +104,7 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         Page<User> page = userRepository.findAll(spec, pageable);
         List<AdminUserResponse> content = page.getContent()
-                .stream().map(this::toAdminResponse).collect(Collectors.toList());
+                .stream().map(this::toAdminListResponse).collect(Collectors.toList());
 
         return PagedResponse.<AdminUserResponse>builder()
                 .content(content)
@@ -347,6 +348,41 @@ public class AdminUserServiceImpl implements AdminUserService {
         return new BigDecimal(v.toString());
     }
 
+    /**
+     * Lightweight mapper for the paginated list endpoint.
+     * Intentionally skips roles and permissions — they are not needed by the
+     * admin user table and skipping them eliminates the UserRole + RolePermission
+     * queries that used to fire for every user on the page.
+     */
+    private AdminUserResponse toAdminListResponse(User user) {
+        AdminUserResponse.AdminUserResponseBuilder builder = AdminUserResponse.builder()
+                .id(user.getId())
+                .userName(user.getUserName())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .image(user.getImage())
+                .gender(user.getGender())
+                .googleId(user.getGoogleId())
+                .active(Boolean.TRUE.equals(user.getActive()))
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt());
+        // roles / permissions intentionally omitted
+
+        if (user.getWallet() != null) {
+            UserWallet wallet = user.getWallet();
+            builder.walletBalance(wallet.getBalance())
+                    .walletStatus(wallet.getStatus().name())
+                    .walletCurrency(wallet.getCurrency().toString());
+        }
+
+        return builder.build();
+    }
+
+    /**
+     * Full mapper used by single-user endpoints (detail, update, role assignment, etc.)
+     * where roles and permissions are actually needed.
+     */
     private AdminUserResponse toAdminResponse(User user) {
         AdminUserResponse.AdminUserResponseBuilder builder = AdminUserResponse.builder()
                 .id(user.getId())

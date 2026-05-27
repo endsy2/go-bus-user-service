@@ -3,6 +3,7 @@ package com.busapp.userservice.model;
 import com.busapp.userservice.model.enums.Gender;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -14,9 +15,11 @@ import java.util.Set;
 @Entity
 @Table(name = "\"User\"",
         indexes = {
-                @Index(name = "idx_user_email",     columnList = "email"),
-                @Index(name = "idx_user_phone",     columnList = "phone"),
-                @Index(name = "idx_user_google_id", columnList = "googleId")
+                @Index(name = "idx_user_email",      columnList = "email"),
+                @Index(name = "idx_user_phone",      columnList = "phone"),
+                @Index(name = "idx_user_google_id",  columnList = "googleId"),
+                @Index(name = "idx_user_active",     columnList = "active"),       // active filter in list
+                @Index(name = "idx_user_created_at", columnList = "createdAt")    // ORDER BY createdAt DESC + date range
         })
 @Data
 @Builder
@@ -97,13 +100,18 @@ public class User {
     @EqualsAndHashCode.Exclude
     private List<TopUp> topUps;
 
-    /** Roles assigned to this user, loaded eagerly so they are available during JWT issuance. */
-    @ManyToMany(fetch = FetchType.EAGER)
+    /**
+     * Roles assigned to this user.
+     * LAZY — only loaded when explicitly accessed (auth uses JOIN FETCH queries;
+     * admin list skips roles entirely). @BatchSize batches any remaining lazy hits.
+     */
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "\"UserRole\"",
             joinColumns        = @JoinColumn(name = "\"userId\""),
             inverseJoinColumns = @JoinColumn(name = "\"roleId\"")
     )
+    @BatchSize(size = 25)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Set<Role> roles;

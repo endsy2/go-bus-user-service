@@ -93,7 +93,9 @@ public class AuthServiceImpl implements AuthService {
     public AuthResponse login(AuthRequest request) {
         log.info("[AUTH] Login attempt - email={}", request.getEmail());
 
-        User user = userRepository.findByEmail(request.getEmail())
+        // Use JOIN FETCH so roles+permissions are loaded in one query —
+        // avoids lazy-loading them outside a transaction in issueTokenPair().
+        User user = userRepository.findByEmailWithRolesAndPermissions(request.getEmail())
                 .orElseThrow(() -> {
                     log.warn("[AUTH] Login failed - email not found: {}", request.getEmail());
                     return new ResourceNotFoundException("Invalid email or password.");
@@ -135,8 +137,9 @@ public class AuthServiceImpl implements AuthService {
             throw new ResourceNotFoundException("Refresh token has been revoked or replaced.");
         }
 
-        // 3. Load user and issue new access token
-        User user = userRepository.findById(userId)
+        // 3. Load user with roles+permissions in one JOIN FETCH query —
+        // avoids lazy-loading them outside a transaction in issueTokenPair().
+        User user = userRepository.findByIdWithRolesAndPermissions(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found."));
 
         log.info("[AUTH] Token refreshed successfully - userId={}", userId);
