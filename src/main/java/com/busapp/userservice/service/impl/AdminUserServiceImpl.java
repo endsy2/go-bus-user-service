@@ -317,16 +317,8 @@ public class AdminUserServiceImpl implements AdminUserService {
             }
             return UserBookingStatsResponse.builder()
                     .totalBookings(asLong(raw.get("totalBookings")))
-                    .confirmedBookings(asLong(raw.get("confirmedBookings")))
-                    .cancelledBookings(asLong(raw.get("cancelledBookings")))
-                    .refundedBookings(asLong(raw.get("refundedBookings")))
-                    .pendingBookings(asLong(raw.get("pendingBookings")))
                     .totalSpent(asBigDecimal(raw.get("totalSpent")))
-                    .averageBookingValue(asBigDecimal(raw.get("averageBookingValue")))
                     .activeTickets(asLong(raw.get("activeTickets")))
-                    .usedTickets(asLong(raw.get("usedTickets")))
-                    .firstBookingDate(asDateTime(raw.get("firstBookingDate")))
-                    .lastBookingDate(asDateTime(raw.get("lastBookingDate")))
                     .build();
         } catch (Exception e) {
             log.warn("Failed to fetch booking stats for user {}: {}", userId, e.getMessage());
@@ -337,14 +329,8 @@ public class AdminUserServiceImpl implements AdminUserService {
     private UserBookingStatsResponse emptyBookingStats() {
         return UserBookingStatsResponse.builder()
                 .totalBookings(0L)
-                .confirmedBookings(0L)
-                .cancelledBookings(0L)
-                .refundedBookings(0L)
-                .pendingBookings(0L)
                 .totalSpent(BigDecimal.ZERO)
-                .averageBookingValue(BigDecimal.ZERO)
                 .activeTickets(0L)
-                .usedTickets(0L)
                 .build();
     }
 
@@ -359,17 +345,6 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (v instanceof BigDecimal bd) return bd;
         if (v instanceof Number n) return BigDecimal.valueOf(n.doubleValue());
         return new BigDecimal(v.toString());
-    }
-
-    private LocalDateTime asDateTime(Object v) {
-        if (v == null) return null;
-        if (v instanceof LocalDateTime ldt) return ldt;
-        try {
-            return LocalDateTime.parse(v.toString());
-        } catch (Exception e) {
-            log.debug("Could not parse booking date '{}': {}", v, e.getMessage());
-            return null;
-        }
     }
 
     private AdminUserResponse toAdminResponse(User user) {

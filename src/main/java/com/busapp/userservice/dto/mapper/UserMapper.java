@@ -92,6 +92,7 @@ public class UserMapper {
                 .fullName(request.getFullName())
                 .email(request.getEmail())
                 .phone(request.getPhone())
+                .active(true)
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .googleId(request.getGoogleId())
                 .image(request.getImage())

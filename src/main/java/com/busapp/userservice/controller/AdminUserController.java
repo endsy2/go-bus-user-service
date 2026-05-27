@@ -42,7 +42,7 @@ public class AdminUserController {
                 .size(size)
                 .build();
 
-        return ResponseEntity.ok(ApiResponse.of(HttpStatus.OK.value(), "Users retrieved suc1cessfully",
+        return ResponseEntity.ok(ApiResponse.of(HttpStatus.OK.value(), "Users retrieved successfully",
                 adminUserService.getUsers(filter)));
     }
 
