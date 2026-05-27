@@ -65,6 +65,8 @@ public class AdminUserServiceImpl implements AdminUserService {
     private static final long   BOOKING_STATS_TTL_SECONDS = 300L; // 5 minutes
 
     // ── Native SQL: user + wallet + roles + permissions in one round-trip ─────
+    // No schema prefix needed — search_path is set to user_service via HikariCP
+    // connection-init-sql so every JDBC connection already knows the right schema.
     private static final String USER_DETAIL_SQL =
             "SELECT " +
             "  u.id, " +
@@ -83,12 +85,12 @@ public class AdminUserServiceImpl implements AdminUserService {
             "  w.currency           AS wallet_currency, " +
             "  STRING_AGG(DISTINCT r.name, ',')  AS roles, " +
             "  STRING_AGG(DISTINCT p.name, ',')  AS permissions " +
-            "FROM   user_service.\"User\" u " +
-            "LEFT   JOIN user_service.\"UserWallet\" w      ON w.\"userId\"   = u.id " +
-            "LEFT   JOIN user_service.\"UserRole\" ur        ON ur.\"userId\"  = u.id " +
-            "LEFT   JOIN user_service.\"Role\" r             ON r.id           = ur.\"roleId\" " +
-            "LEFT   JOIN user_service.\"RolePermission\" rp  ON rp.\"roleId\"  = r.id " +
-            "LEFT   JOIN user_service.\"Permission\" p       ON p.id           = rp.\"permissionId\" " +
+            "FROM   \"User\" u " +
+            "LEFT   JOIN \"UserWallet\" w      ON w.\"userId\"   = u.id " +
+            "LEFT   JOIN \"UserRole\" ur        ON ur.\"userId\"  = u.id " +
+            "LEFT   JOIN \"Role\" r             ON r.id           = ur.\"roleId\" " +
+            "LEFT   JOIN \"RolePermission\" rp  ON rp.\"roleId\"  = r.id " +
+            "LEFT   JOIN \"Permission\" p       ON p.id           = rp.\"permissionId\" " +
             "WHERE  u.id = ? " +
             "GROUP  BY u.id, u.\"userName\", u.\"fullName\", u.email, u.phone, u.image, " +
             "          u.gender, u.\"googleId\", u.active, u.\"createdAt\", u.\"updatedAt\", " +

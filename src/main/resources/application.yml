@@ -23,6 +23,9 @@ spring:
       max-lifetime: 1800000        # 30 min — recycle connections to avoid stale ones
       keepalive-time: 60000        # 1 min heartbeat ping to Railway's proxy
       pool-name: UserServicePool
+      # Set search_path on every new connection so JdbcTemplate native SQL
+      # can reference tables without schema prefix (same as Hibernate default_schema)
+      connection-init-sql: "SET search_path TO user_service"
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:

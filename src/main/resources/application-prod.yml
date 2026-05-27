@@ -17,6 +17,7 @@ spring:
       max-lifetime: 1800000
       keepalive-time: 60000
       pool-name: UserServicePool
+      connection-init-sql: "SET search_path TO user_service"
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
