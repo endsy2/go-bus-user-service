@@ -7,6 +7,7 @@ import com.busapp.userservice.dto.request.WalletTransactionRequest;
 import com.busapp.userservice.dto.response.ApiResponse;
 import com.busapp.userservice.dto.response.WalletBalanceResponse;
 import com.busapp.userservice.dto.response.WalletResponse;
+import com.busapp.userservice.dto.response.WalletTransactionDetailResponse;
 import com.busapp.userservice.dto.response.WalletTransactionResponse;
 import com.busapp.userservice.model.enums.TransactionStatus;
 import com.busapp.userservice.model.enums.TransactionType;
@@ -123,21 +124,6 @@ public class WalletController {
         return ResponseEntity.ok(walletService.getTransactions(filter, page, size));
     }
 
-    /**
-     * Get a single transaction detail by reference number - Requires wallet session
-     */
-    @GetMapping("/me/transactions/{referenceId}")
-    public ResponseEntity<ApiResponse<WalletTransactionResponse>> getTransactionByReferenceId(
-            @RequestHeader("X-Wallet-Session") String walletSessionToken,
-            @PathVariable String referenceId) {
 
-        walletSessionUtil.validateAndRefreshSession(walletSessionToken);
-
-        return ResponseEntity.ok(
-                ApiResponse.of(
-                        "Transaction retrieved successfully",
-                        walletService.getTransactionByReferenceId(referenceId)
-                ));
-    }
 
 }

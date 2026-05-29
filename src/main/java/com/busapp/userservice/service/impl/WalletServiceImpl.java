@@ -6,6 +6,7 @@ import com.busapp.userservice.dto.request.WalletFilterRequest;
 import com.busapp.userservice.dto.request.WalletLoginRequest;
 import com.busapp.userservice.dto.response.WalletBalanceResponse;
 import com.busapp.userservice.dto.response.WalletResponse;
+import com.busapp.userservice.dto.response.WalletTransactionDetailResponse;
 import com.busapp.userservice.dto.response.WalletTransactionResponse;
 import com.busapp.userservice.exception.BadRequestException;
 import com.busapp.userservice.exception.DuplicateResourceException;
@@ -146,7 +147,8 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
-    public WalletTransactionResponse getTransactionByReferenceId(String referenceId) {
+    @Transactional(readOnly = true)
+    public WalletTransactionDetailResponse getTransactionByReferenceId(String referenceId) {
         Long currentUserId = userUtil.getCurrentUserId();
 
         WalletTransaction transaction = transactionRepository.findByReferenceId(referenceId)
@@ -160,7 +162,7 @@ public class WalletServiceImpl implements WalletService {
             throw new ResourceNotFoundException("Transaction not found for reference: " + referenceId);
         }
 
-        return walletMapper.toTransactionResponse(transaction);
+        return walletMapper.toTransactionDetailResponse(transaction);
     }
 
     @Override

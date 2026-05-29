@@ -6,6 +6,7 @@ import com.busapp.userservice.dto.request.WalletFilterRequest;
 import com.busapp.userservice.dto.request.WalletLoginRequest;
 import com.busapp.userservice.dto.response.WalletBalanceResponse;
 import com.busapp.userservice.dto.response.WalletResponse;
+import com.busapp.userservice.dto.response.WalletTransactionDetailResponse;
 import com.busapp.userservice.dto.response.WalletTransactionResponse;
 import com.busapp.userservice.model.enums.TransactionType;
 
@@ -25,7 +26,7 @@ public interface WalletService {
 
     PagedResponse<WalletTransactionResponse> getTransactions(TransactionFilterRequest filter, int page, int size);
 
-    WalletTransactionResponse getTransactionByReferenceId(String referenceId);
+    WalletTransactionDetailResponse getTransactionByReferenceId(String referenceId);
 
     WalletTransactionResponse doTransactionInternal(Long userId, String walletSessionToken, TransactionType transactionType, Double amount);
 

@@ -6,6 +6,7 @@ import com.busapp.userservice.dto.request.WalletFilterRequest;
 import com.busapp.userservice.dto.request.WalletTransactionRequest;
 import com.busapp.userservice.dto.response.ApiResponse;
 import com.busapp.userservice.dto.response.WalletResponse;
+import com.busapp.userservice.dto.response.WalletTransactionDetailResponse;
 import com.busapp.userservice.dto.response.WalletTransactionResponse;
 import com.busapp.userservice.exception.UnauthorizedException;
 import com.busapp.userservice.model.enums.TransactionStatus;
@@ -148,8 +149,12 @@ public class AdminWalletController {
 
         return ResponseEntity.ok(walletService.getTransactions(filter, page, size));
     }
+    /**
+     * Get a single transaction detail by reference number
+     */
     @GetMapping("/transactions/{referenceId}")
-    public ResponseEntity<ApiResponse<WalletTransactionResponse>> getTransactionByReferenceId(@PathVariable String referenceId) {
+    public ResponseEntity<ApiResponse<WalletTransactionDetailResponse>> getTransactionByReferenceId(
+            @PathVariable String referenceId) {
         return ResponseEntity.ok(
                 ApiResponse.of(
                         "Transaction retrieved successfully",

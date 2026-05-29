@@ -2,6 +2,7 @@ package com.busapp.userservice.dto.mapper;
 
 import com.busapp.userservice.dto.request.CreateUserWalletRequest;
 import com.busapp.userservice.dto.response.WalletResponse;
+import com.busapp.userservice.dto.response.WalletTransactionDetailResponse;
 import com.busapp.userservice.dto.response.WalletTransactionResponse;
 import com.busapp.userservice.model.Role;
 import com.busapp.userservice.model.User;
@@ -78,6 +79,38 @@ public class WalletMapper {
         response.setCompletedAt(tx.getCompletedAt());
         return response;
     }
+    public WalletTransactionDetailResponse toTransactionDetailResponse(WalletTransaction tx) {
+        UserWallet wallet = tx.getWallet();
+        User owner = wallet.getUser();
+
+        return WalletTransactionDetailResponse.builder()
+                .id(tx.getId())
+                .referenceId(tx.getReferenceId())
+                .type(tx.getType())
+                .status(tx.getStatus())
+                .amount(tx.getAmount())
+                .balanceBefore(tx.getBalanceBefore())
+                .balanceAfter(tx.getBalanceAfter())
+                .description(tx.getDescription())
+                .metadata(tx.getMetadata())
+                .createdAt(tx.getCreatedAt())
+                .completedAt(tx.getCompletedAt())
+                .wallet(WalletTransactionDetailResponse.WalletInfo.builder()
+                        .id(wallet.getId())
+                        .currentBalance(wallet.getBalance())
+                        .currency(wallet.getCurrency())
+                        .status(wallet.getStatus())
+                        .build())
+                .owner(WalletTransactionDetailResponse.OwnerInfo.builder()
+                        .userId(owner.getId())
+                        .userName(owner.getUserName())
+                        .fullName(owner.getFullName())
+                        .email(owner.getEmail())
+                        .phone(owner.getPhone())
+                        .build())
+                .build();
+    }
+
     public UserWallet toEntity(CreateUserWalletRequest request){
         return UserWallet.builder()
                 .user(request.getUser())
