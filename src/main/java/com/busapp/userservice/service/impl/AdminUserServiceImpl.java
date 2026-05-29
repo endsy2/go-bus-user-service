@@ -23,6 +23,7 @@ import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import static net.logstash.logback.argument.StructuredArguments.kv;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -129,41 +130,11 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional(readOnly = true)
     public AdminUserResponse getUserById(Long userId) {
-        // Propagate Spring request context so the Feign interceptor (which reads
-        // RequestContextHolder) works correctly on the async thread.
-        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
 
-        // Fetch booking stats in parallel — hits Redis first, Feign only on miss.
-        // Hard 2-second timeout: if booking-service is cold/slow the detail view
-        // still returns immediately with zeroed stats.
-        CompletableFuture<UserBookingStatsResponse> statsFuture = CompletableFuture
-                .supplyAsync(() -> {
-                    try {
-                        if (requestAttributes != null) {
-                            RequestContextHolder.setRequestAttributes(requestAttributes);
-                        }
-                        return getBookingStatsCached(userId);
-                    } finally {
-                        if (requestAttributes != null) {
-                            RequestContextHolder.resetRequestAttributes();
-                        }
-                    }
-                })
-                .orTimeout(2, TimeUnit.SECONDS)
-                .exceptionally(ex -> {
-                    log.warn("[ADMIN] Booking stats timed out / failed for userId={}: {}",
-                            userId, ex.getMessage());
-                    return emptyBookingStats();
-                });
-
-        // Single JPQL query with LEFT JOIN FETCH:
-        // loads user + roles + permissions + wallet in one round-trip — no N+1, no JdbcTemplate.
         User user = userRepository.findDetailById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
 
-        AdminUserResponse response = toAdminDetailResponse(user);
-        response.setBookingStats(statsFuture.join());
-        return response;
+        return toAdminDetailResponse(user);
     }
 
     // ── Update User Info ──────────────────────────────────────────────────────
@@ -171,6 +142,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional
     public AdminUserResponse updateUser(Long userId, UpdateUserRequest request) {
+        log.debug("ADMIN_USER_UPDATE", kv("userId", userId));
         User user = findUser(userId);
 
         if (request.getUserName() != null && !request.getUserName().isBlank()) {
@@ -200,6 +172,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional
     public AdminUserResponse setActive(Long userId, boolean active) {
+        log.debug("ADMIN_USER_SET_ACTIVE", kv("userId", userId), kv("active", active));
         User user = findUser(userId);
         user.setActive(active);
         return toAdminResponse(userRepository.save(user));
@@ -210,12 +183,16 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional
     public AdminUserResponse resetPassword(Long userId, String newPassword) {
+        // Never log the password value itself — only the action.
+        log.debug("ADMIN_PASSWORD_RESET", kv("userId", userId));
         if (newPassword == null || newPassword.length() < 6) {
             throw new BadRequestException("Password must be at least 6 characters.");
         }
         User user = findUser(userId);
         user.setPasswordHash(passwordEncoder.encode(newPassword));
-        return toAdminResponse(userRepository.save(user));
+        AdminUserResponse response = toAdminResponse(userRepository.save(user));
+        log.debug("ADMIN_PASSWORD_RESET_DONE", kv("userId", userId));
+        return response;
     }
 
     // ── Unlink Google ─────────────────────────────────────────────────────────
@@ -223,6 +200,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional
     public AdminUserResponse unlinkGoogle(Long userId) {
+        log.debug("ADMIN_UNLINK_GOOGLE", kv("userId", userId));
         User user = findUser(userId);
         user.setGoogleId(null);
         return toAdminResponse(userRepository.save(user));
@@ -233,6 +211,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional
     public AdminUserResponse assignRoles(Long userId, List<String> roleNames) {
+        log.debug("ADMIN_ASSIGN_ROLES", kv("userId", userId), kv("roles", roleNames));
         User user = findUser(userId);
         Set<Role> roles = new HashSet<>(roleRepository.findByNameIn(new HashSet<>(roleNames)));
         user.setRoles(roles);
@@ -244,6 +223,8 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional
     public AdminUserResponse adjustWallet(Long userId, WalletAdjustRequest request) {
+        log.debug("ADMIN_WALLET_ADJUST", kv("userId", userId), kv("operation", request.getOperation()),
+                kv("amount", request.getAmount()));
         UserWallet wallet = userWalletRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Wallet not found for user: " + userId));
 
@@ -268,6 +249,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         wallet.setBalance(after);
         wallet.setLastTransaction(LocalDateTime.now());
         userWalletRepository.save(wallet);
+        log.debug("ADMIN_WALLET_ADJUSTED", kv("userId", userId), kv("balanceBefore", before), kv("balanceAfter", after));
 
         WalletTransaction tx = WalletTransaction.builder()
                 .wallet(wallet)
@@ -289,6 +271,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional
     public AdminUserResponse setWalletStatus(Long userId, String status) {
+        log.debug("ADMIN_WALLET_SET_STATUS", kv("userId", userId), kv("status", status));
         UserWallet wallet = userWalletRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Wallet not found for user: " + userId));
         try {
@@ -305,10 +288,12 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional
     public void deleteUser(Long userId) {
+        log.debug("ADMIN_USER_DELETE", kv("userId", userId));
         if (!userRepository.existsById(userId)) {
             throw new ResourceNotFoundException("User not found: " + userId);
         }
         userRepository.deleteById(userId);
+        log.debug("ADMIN_USER_DELETED", kv("userId", userId));
     }
 
     // ── Redis-cached booking stats ────────────────────────────────────────────
@@ -421,20 +406,6 @@ public class AdminUserServiceImpl implements AdminUserService {
                 .active(Boolean.TRUE.equals(user.getActive()))
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt());
-
-        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
-            builder.roles(user.getRoles().stream()
-                    .map(Role::getName)
-                    .collect(Collectors.toList()));
-            builder.permissions(user.getRoles().stream()
-                    .flatMap(r -> r.getPermissions().stream())
-                    .map(p -> p.getName())
-                    .distinct()
-                    .collect(Collectors.toList()));
-        } else {
-            builder.roles(Collections.emptyList());
-            builder.permissions(Collections.emptyList());
-        }
 
         if (user.getWallet() != null) {
             UserWallet w = user.getWallet();

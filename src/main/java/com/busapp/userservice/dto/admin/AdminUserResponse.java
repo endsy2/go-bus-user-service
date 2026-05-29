@@ -35,6 +35,4 @@ public class AdminUserResponse {
     private List<String> roles;
     private List<String> permissions;
 
-    // Booking statistics — populated only on detail endpoint (getUserById)
-    private UserBookingStatsResponse bookingStats;
 }

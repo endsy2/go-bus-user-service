@@ -36,6 +36,8 @@ dependencies {
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    // Structured (JSON / key-value) logging + StructuredArguments.kv(...)
+    implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
     implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
     
     // Apache POI for Excel generation

@@ -32,6 +32,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import static net.logstash.logback.argument.StructuredArguments.kv;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -97,16 +99,17 @@ public class AuthServiceImpl implements AuthService {
         // avoids lazy-loading them outside a transaction in issueTokenPair().
         User user = userRepository.findByEmailWithRolesAndPermissions(request.getEmail())
                 .orElseThrow(() -> {
-                    log.warn("[AUTH] Login failed - email not found: {}", request.getEmail());
+                    log.warn("LOGIN_FAILED", kv("email", request.getEmail()), kv("reason", "USER_NOT_FOUND"));
                     return new ResourceNotFoundException("Invalid email or password.");
                 });
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            log.warn("[AUTH] Login failed - wrong password for email={}", request.getEmail());
+            log.warn("LOGIN_FAILED", kv("userId", user.getId()), kv("email", request.getEmail()),
+                    kv("reason", "BAD_CREDENTIALS"));
             throw new ResourceNotFoundException("Invalid email or password.");
         }
 
-        log.info("[AUTH] Login successful - userId={}, email={}", user.getId(), user.getEmail());
+        log.info("LOGIN_SUCCESS", kv("userId", user.getId()), kv("email", user.getEmail()));
         return issueTokenPair(user);
     }
 
@@ -119,12 +122,12 @@ public class AuthServiceImpl implements AuthService {
         try {
             claims = jwtUtil.parseToken(refreshToken);
         } catch (JwtException e) {
-            log.warn("[AUTH] Token refresh failed - invalid or expired refresh token");
+            log.warn("TOKEN_VALIDATION_FAILED", kv("tokenType", "refresh"), kv("reason", "INVALID_OR_EXPIRED"));
             throw new ResourceNotFoundException("Invalid or expired refresh token.");
         }
 
         if (!"refresh".equals(claims.get("type"))) {
-            log.warn("[AUTH] Token refresh failed - not a refresh token");
+            log.warn("TOKEN_VALIDATION_FAILED", kv("reason", "WRONG_TOKEN_TYPE"));
             throw new ResourceNotFoundException("Provided token is not a refresh token.");
         }
 
@@ -133,7 +136,8 @@ public class AuthServiceImpl implements AuthService {
         // 2. Verify against Redis (one active refresh token per user)
         String stored = redisTokenService.getRefreshToken(userId);
         if (stored == null || !stored.equals(refreshToken)) {
-            log.warn("[AUTH] Token refresh failed - token revoked or replaced for userId={}", userId);
+            log.warn("TOKEN_VALIDATION_FAILED", kv("userId", userId), kv("tokenType", "refresh"),
+                    kv("reason", "REVOKED_OR_REPLACED"));
             throw new ResourceNotFoundException("Refresh token has been revoked or replaced.");
         }
 

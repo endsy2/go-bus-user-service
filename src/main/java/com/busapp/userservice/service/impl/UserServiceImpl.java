@@ -13,6 +13,7 @@ import com.busapp.userservice.repository.UserRepository;
 import com.busapp.userservice.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import static net.logstash.logback.argument.StructuredArguments.kv;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -69,13 +70,12 @@ public class UserServiceImpl implements UserService {
      * Order: id, userName, fullName, email, phone
      */
     private UserBasicResponse mapToUserBasicResponse(Object[] row) {
-        log.info("Original row length: {}", row.length);
+        log.debug("USER_ROW_MAP", kv("rowLength", row.length));
 
         // Unwrap if the result is wrapped in an extra array layer
         if (row.length == 1 && row[0] instanceof Object[]) {
-            log.info("Unwrapping nested array");
+            log.debug("USER_ROW_UNWRAP", kv("unwrappedLength", ((Object[]) row[0]).length));
             row = (Object[]) row[0];
-            log.info("Unwrapped row length: {}", row.length);
         }
 
         if (row == null || row.length < 5) {
@@ -126,6 +126,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponseDetail createUser(UserRequest request) {
+        log.debug("USER_CREATE", kv("userName", request.getUserName()));
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateResourceException("Email already registered: " + request.getEmail());
         }
@@ -133,15 +134,18 @@ public class UserServiceImpl implements UserService {
             throw new DuplicateResourceException("Username already taken: " + request.getUserName());
         }
         User user = userMapper.toEntity(request);
-        return userMapper.toResponse(userRepository.save(user));
+        User saved = userRepository.save(user);
+        log.debug("USER_CREATED", kv("userId", saved.getId()), kv("userName", saved.getUserName()));
+        return userMapper.toResponse(saved);
     }
 
 
     @Override
     public UserResponseDetail updateProfile(Long userId, UpdateProfileRequest request) {
+        log.debug("USER_PROFILE_UPDATE", kv("userId", userId));
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-        
+
         // Update only provided fields
         if (request.getUserName() != null && !request.getUserName().isBlank()) {
             // Check if username is already taken by another user
@@ -189,9 +193,11 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void deleteUser(Long id) {
+        log.debug("USER_SOFT_DELETE", kv("userId", id));
         User user=userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
         user.setIsDeleted(true);
         userRepository.save(user);
+        log.debug("USER_SOFT_DELETED", kv("userId", id));
     }
 
     @Override

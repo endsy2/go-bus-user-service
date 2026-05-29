@@ -17,6 +17,8 @@ import com.busapp.userservice.repository.UserWalletRepository;
 import com.busapp.userservice.repository.WalletTransactionRepository;
 import com.busapp.userservice.service.TopUpService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import static net.logstash.logback.argument.StructuredArguments.kv;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +27,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TopUpServiceImpl implements TopUpService {
@@ -61,14 +64,17 @@ public class TopUpServiceImpl implements TopUpService {
     @Override
     @Transactional
     public TopUpResponse createTopUp(Long userId, TopUpRequest request) {
+        log.debug("TOPUP_CREATE", kv("userId", userId), kv("amount", request.getAmount()),
+                kv("paymentMethod", request.getPaymentMethod()));
+
         // Verify user exists
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
-        
+
         // Get user wallet
         UserWallet userWallet = userWalletRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("UserWallet not found: " + userId));
-        
+
         // Generate transaction ID
         String transactionId = "TOPUP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         request.setTransactionId(transactionId);
@@ -81,12 +87,14 @@ public class TopUpServiceImpl implements TopUpService {
         
         // Record balance before update
         Double balanceBefore = userWallet.getBalance();
-        
+
         // Update wallet balance
         userWallet.setBalance(balanceBefore + request.getAmount());
         userWallet.setLastTransaction(LocalDateTime.now());
         userWalletRepository.save(userWallet);
-        
+        log.debug("TOPUP_WALLET_UPDATED", kv("userId", userId), kv("balanceBefore", balanceBefore),
+                kv("balanceAfter", userWallet.getBalance()), kv("transactionId", transactionId));
+
         // Create wallet transaction record
         WalletTransaction transaction = WalletTransaction.builder()
                 .wallet(userWallet)
@@ -102,7 +110,9 @@ public class TopUpServiceImpl implements TopUpService {
                 .build();
         
         walletTransactionRepository.save(transaction);
-        
+        log.debug("TOPUP_COMPLETED", kv("userId", userId), kv("topUpId", savedTopUp.getId()),
+                kv("transactionId", transactionId));
+
         return topUpMapper.toResponse(savedTopUp);
     }
 }

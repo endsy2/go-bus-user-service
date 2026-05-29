@@ -14,6 +14,8 @@ import com.busapp.userservice.service.RolePermissionCacheService;
 import com.busapp.userservice.service.RolePermissionNameCacheService;
 import com.busapp.userservice.service.RoleService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import static net.logstash.logback.argument.StructuredArguments.kv;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RoleServiceImpl implements RoleService {
@@ -65,18 +68,23 @@ public class RoleServiceImpl implements RoleService {
     @Override
     @Transactional
     public RoleResponse createRole(RoleRequest request) {
+        log.debug("ROLE_CREATE", kv("name", request.getName()),
+                kv("permissionCount", request.getPermissions() == null ? 0 : request.getPermissions().size()));
         if (roleRepository.existsByName(request.getName())) {
+            log.debug("ROLE_CREATE_REJECTED", kv("name", request.getName()), kv("reason", "NAME_EXISTS"));
             throw new DuplicateResourceException("Role already exists: " + request.getName());
         }
         Role role = roleMapper.toEntity(request, resolvePermissions(request.getPermissions()));
         RoleResponse response = roleMapper.toResponse(roleRepository.save(role));
         clearAllRoleCaches();
+        log.debug("ROLE_CREATED", kv("roleId", response.getId()), kv("name", response.getName()));
         return response;
     }
 
     @Override
     @Transactional
     public RoleResponse updateRole(Long id, RoleRequest request) {
+        log.debug("ROLE_UPDATE", kv("roleId", id));
         Role role = findRole(id);
         role.setName(request.getName());
         role.setDescription(request.getDescription());
@@ -85,17 +93,20 @@ public class RoleServiceImpl implements RoleService {
         }
         RoleResponse response = roleMapper.toResponse(roleRepository.save(role));
         clearAllRoleCaches();
+        log.debug("ROLE_UPDATED", kv("roleId", id), kv("name", response.getName()));
         return response;
     }
 
     @Override
     @Transactional
     public void deleteRole(Long id) {
+        log.debug("ROLE_DELETE", kv("roleId", id));
         if (!roleRepository.existsById(id)) {
             throw new ResourceNotFoundException("Role not found: " + id);
         }
         roleRepository.deleteById(id);
         clearAllRoleCaches();
+        log.debug("ROLE_DELETED", kv("roleId", id));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
