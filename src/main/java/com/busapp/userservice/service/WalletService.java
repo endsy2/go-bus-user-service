@@ -25,6 +25,8 @@ public interface WalletService {
 
     PagedResponse<WalletTransactionResponse> getTransactions(TransactionFilterRequest filter, int page, int size);
 
+    WalletTransactionResponse getTransactionByReferenceId(String referenceId);
+
     WalletTransactionResponse doTransactionInternal(Long userId, String walletSessionToken, TransactionType transactionType, Double amount);
 
     WalletResponse walletLogin(WalletLoginRequest walletLoginRequest);

@@ -148,5 +148,13 @@ public class AdminWalletController {
 
         return ResponseEntity.ok(walletService.getTransactions(filter, page, size));
     }
+    @GetMapping("/transactions/{referenceId}")
+    public ResponseEntity<ApiResponse<WalletTransactionResponse>> getTransactionByReferenceId(@PathVariable String referenceId) {
+        return ResponseEntity.ok(
+                ApiResponse.of(
+                        "Transaction retrieved successfully",
+                        walletService.getTransactionByReferenceId(referenceId)
+                ));
+    }
 
 }

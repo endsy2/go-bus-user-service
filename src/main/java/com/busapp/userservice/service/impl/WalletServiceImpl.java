@@ -146,6 +146,24 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
+    public WalletTransactionResponse getTransactionByReferenceId(String referenceId) {
+        Long currentUserId = userUtil.getCurrentUserId();
+
+        WalletTransaction transaction = transactionRepository.findByReferenceId(referenceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found for reference: " + referenceId));
+
+        // Ensure the transaction belongs to the current user's wallet
+        Long ownerUserId = transaction.getWallet().getUser().getId();
+        if (!ownerUserId.equals(currentUserId)) {
+            log.warn("[WALLET TRANSACTION] User {} attempted to access transaction {} owned by user {}",
+                    currentUserId, referenceId, ownerUserId);
+            throw new ResourceNotFoundException("Transaction not found for reference: " + referenceId);
+        }
+
+        return walletMapper.toTransactionResponse(transaction);
+    }
+
+    @Override
     @Transactional
     public WalletTransactionResponse doTransactionInternal(Long userId, String walletSessionToken, TransactionType transactionType, Double amount) {
         // Validate wallet session

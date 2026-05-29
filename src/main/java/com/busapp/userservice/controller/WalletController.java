@@ -123,4 +123,21 @@ public class WalletController {
         return ResponseEntity.ok(walletService.getTransactions(filter, page, size));
     }
 
+    /**
+     * Get a single transaction detail by reference number - Requires wallet session
+     */
+    @GetMapping("/me/transactions/{referenceId}")
+    public ResponseEntity<ApiResponse<WalletTransactionResponse>> getTransactionByReferenceId(
+            @RequestHeader("X-Wallet-Session") String walletSessionToken,
+            @PathVariable String referenceId) {
+
+        walletSessionUtil.validateAndRefreshSession(walletSessionToken);
+
+        return ResponseEntity.ok(
+                ApiResponse.of(
+                        "Transaction retrieved successfully",
+                        walletService.getTransactionByReferenceId(referenceId)
+                ));
+    }
+
 }
