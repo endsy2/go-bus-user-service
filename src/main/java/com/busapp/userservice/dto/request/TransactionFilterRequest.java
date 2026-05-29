@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Data
@@ -18,4 +19,12 @@ public class TransactionFilterRequest {
     private TransactionType type;
     private TransactionStatus status;
     private String referenceId;
+
+    // Transaction date range (inclusive), matched against createdAt.
+    private LocalDate fromDate;
+    private LocalDate toDate;
+
+    // Transaction amount range (inclusive).
+    private Double minAmount;
+    private Double maxAmount;
 }

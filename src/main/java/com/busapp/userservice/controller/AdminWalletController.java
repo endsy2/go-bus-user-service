@@ -17,11 +17,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @RestController
@@ -92,10 +94,13 @@ public class AdminWalletController {
             @PathVariable Long userId,
             @RequestParam(required = false) TransactionType type,
             @RequestParam(required = false) TransactionStatus status,
+            @RequestParam(required = false) String referenceId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) Double minAmount,
+            @RequestParam(required = false) Double maxAmount,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-
-
 
         // Get user's wallet first
         WalletResponse wallet = walletService.getWalletByUserId(userId);
@@ -104,6 +109,11 @@ public class AdminWalletController {
                 .walletId(wallet.getId())
                 .type(type)
                 .status(status)
+                .referenceId(referenceId)
+                .fromDate(fromDate)
+                .toDate(toDate)
+                .minAmount(minAmount)
+                .maxAmount(maxAmount)
                 .build();
 
         return ResponseEntity.ok(walletService.getTransactions(filter, page, size));
@@ -118,6 +128,10 @@ public class AdminWalletController {
             @RequestParam(required = false) TransactionType type,
             @RequestParam(required = false) TransactionStatus status,
             @RequestParam(required = false) String referenceId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) Double minAmount,
+            @RequestParam(required = false) Double maxAmount,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
 
@@ -126,6 +140,10 @@ public class AdminWalletController {
                 .type(type)
                 .status(status)
                 .referenceId(referenceId)
+                .fromDate(fromDate)
+                .toDate(toDate)
+                .minAmount(minAmount)
+                .maxAmount(maxAmount)
                 .build();
 
         return ResponseEntity.ok(walletService.getTransactions(filter, page, size));
