@@ -15,6 +15,7 @@ public class AdminUserFilterRequest {
     private Boolean active;
     private String fromDate;     // ISO date string
     private String toDate;
+    private Boolean isEmployee;
     @Builder.Default
     private int page = 0;
     @Builder.Default

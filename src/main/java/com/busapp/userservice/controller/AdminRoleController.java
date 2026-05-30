@@ -1,5 +1,6 @@
 package com.busapp.userservice.controller;
 
+import com.busapp.userservice.dto.admin.AssignPermissionsRequest;
 import com.busapp.userservice.dto.admin.PagedResponse;
 import com.busapp.userservice.dto.response.ApiResponse;
 import com.busapp.userservice.dto.admin.RoleRequest;
@@ -55,6 +56,15 @@ public class AdminRoleController {
             @Valid @RequestBody RoleRequest request) {
         return ResponseEntity.ok(ApiResponse.of(HttpStatus.OK.value(), "Role updated successfully",
                 roleService.updateRole(id, request)));
+    }
+
+    @PutMapping("/{id}/permissions")
+    public ResponseEntity<ApiResponse<RoleResponse>> assignPermissions(
+            @PathVariable Long id,
+            @Valid @RequestBody AssignPermissionsRequest request) {
+        return ResponseEntity.ok(ApiResponse.of(HttpStatus.OK.value(),
+                "Permissions assigned successfully",
+                roleService.assignPermissions(id, request.getPermissions())));
     }
 
     @DeleteMapping("/{id}")

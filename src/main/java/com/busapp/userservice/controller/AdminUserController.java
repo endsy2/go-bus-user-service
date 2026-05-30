@@ -26,6 +26,7 @@ public class AdminUserController {
     public ResponseEntity<ApiResponse<PagedResponse<AdminUserResponse>>> getUsers(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String walletStatus,
+            @RequestParam(required = false) Boolean isEmployee,
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate,
@@ -36,6 +37,7 @@ public class AdminUserController {
                 .search(search)
                 .walletStatus(walletStatus)
                 .active(active)
+                .isEmployee(isEmployee)
                 .fromDate(fromDate)
                 .toDate(toDate)
                 .page(page)

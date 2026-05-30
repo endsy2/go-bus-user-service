@@ -18,5 +18,7 @@ public interface RoleService {
 
     RoleResponse updateRole(Long id, RoleRequest request);
 
+    RoleResponse assignPermissions(Long roleId, List<String> permissionNames);
+
     void deleteRole(Long id);
 }

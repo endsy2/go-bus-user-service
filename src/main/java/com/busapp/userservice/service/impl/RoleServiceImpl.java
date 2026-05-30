@@ -99,6 +99,19 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     @Transactional
+    public RoleResponse assignPermissions(Long roleId, List<String> permissionNames) {
+        log.debug("ROLE_ASSIGN_PERMISSIONS", kv("roleId", roleId),
+                kv("permissionCount", permissionNames == null ? 0 : permissionNames.size()));
+        Role role = findRole(roleId);
+        role.setPermissions(resolvePermissions(permissionNames));
+        RoleResponse response = roleMapper.toResponse(roleRepository.save(role));
+        clearAllRoleCaches();
+        log.debug("ROLE_PERMISSIONS_ASSIGNED", kv("roleId", roleId));
+        return response;
+    }
+
+    @Override
+    @Transactional
     public void deleteRole(Long id) {
         log.debug("ROLE_DELETE", kv("roleId", id));
         if (!roleRepository.existsById(id)) {

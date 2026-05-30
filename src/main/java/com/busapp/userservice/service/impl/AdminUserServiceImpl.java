@@ -98,6 +98,9 @@ public class AdminUserServiceImpl implements AdminUserService {
                     // unknown status value — skip predicate
                 }
             }
+            if(filter.getIsEmployee()!=null){
+                predicates.add(cb.equal(root.get("isEmployee"), filter.getIsEmployee()));
+            }
 
             // createdAt range filter
             if (filter.getFromDate() != null && !filter.getFromDate().isBlank()) {
@@ -108,6 +111,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                 LocalDateTime to = LocalDate.parse(filter.getToDate()).atTime(23, 59, 59);
                 predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), to));
             }
+
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
