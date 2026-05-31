@@ -14,6 +14,7 @@ import java.util.Set;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
     Optional<User> findByEmail(String email);
+    Optional<User> findByUserName(String userName);
     boolean existsByEmail(String email);
     boolean existsByUserName(String userName);
     boolean existsByUserNameAndIdNot(String userName, Long id);

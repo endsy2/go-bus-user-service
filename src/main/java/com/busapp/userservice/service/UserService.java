@@ -29,6 +29,13 @@ public interface UserService {
 
     UserResponseDetail getUserByEmail(String email);
 
+    /**
+     * Lightweight lookup by exact username for service-to-service calls (Feign).
+     * Returns {@code null} when no user matches, so callers can treat "not found"
+     * as an empty result instead of handling a 404.
+     */
+    UserBasicResponse getUserByUsername(String username);
+
     UserResponseDetail getUserByPhone(String phone);
 
     UserResponseDetail getUserByGoogleId(String googleId);

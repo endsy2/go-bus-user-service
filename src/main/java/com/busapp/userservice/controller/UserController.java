@@ -90,6 +90,19 @@ public class UserController extends BaseController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Lightweight lookup by exact username — used by other services (Feign) to
+     * resolve a username to a user id. Returns 200 with null data when not found
+     * so the caller can treat it as an empty result rather than a 404.
+     */
+    @GetMapping("/username/{username}")
+    public ResponseEntity<ApiResponse<UserBasicResponse>> getUserByUsername(@PathVariable String username) {
+        ApiResponse<UserBasicResponse> response = ApiResponse.of(
+                "User retrieved successfully",
+                userService.getUserByUsername(username));
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/email/{email}")
     public ResponseEntity<ApiResponse<UserResponseDetail>> getUserByEmail(@PathVariable String email) {
         ApiResponse<UserResponseDetail> response = ApiResponse.of(

@@ -111,6 +111,19 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public UserBasicResponse getUserByUsername(String username) {
+        return userRepository.findByUserName(username)
+                .map(user -> UserBasicResponse.builder()
+                        .id(user.getId())
+                        .userName(user.getUserName())
+                        .fullName(user.getFullName())
+                        .email(user.getEmail())
+                        .phone(user.getPhone())
+                        .build())
+                .orElse(null);
+    }
+
+    @Override
     public UserResponseDetail getUserByPhone(String phone) {
         User user = userRepository.findByPhone(phone)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with phone: " + phone));
