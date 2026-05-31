@@ -57,6 +57,11 @@ minio:
   access-key: ${MINIO_ACCESS_KEY:Ibc7VidQNVyjs5O6BTSofAJZwipsVj5b}
   secret-key: ${MINIO_SECRET_KEY:zRj2DOKqYGtz3nn8yVtCh6rSb1QQAhv5uw0xJYlrBjZaOW01}
   bucket-name: ${MINIO_BUCKET_NAME:go-bus-bucket}
+  # Explicit region so the SDK signs presigned URLs locally instead of making a
+  # GetBucketLocation network probe to the public endpoint — that probe fails from
+  # inside Railway's private network (can't hairpin to its own public domain) and
+  # was causing getPresignedUrl() to return null.
+  region: ${MINIO_REGION:us-east-1}
 
 # ── Bakong Configuration ───────────────────────────────────────────────────────
 bakong:

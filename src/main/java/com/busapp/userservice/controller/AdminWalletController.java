@@ -60,6 +60,20 @@ public class AdminWalletController {
     }
 
     /**
+     * Create (provision) a wallet for a user - ADMIN only.
+     * The wallet is created with no PIN; the user sets it on first wallet login.
+     */
+    @PostMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse<WalletResponse>> createWalletForUser(
+            @PathVariable Long userId) {
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.of(
+                HttpStatus.CREATED.value(),
+                "Wallet created successfully",
+                walletService.createWalletForUser(userId)));
+    }
+
+    /**
      * Get all wallets with filters - ADMIN only
      */
     @GetMapping

@@ -80,6 +80,31 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
+    @Transactional
+    public WalletResponse createWalletForUser(Long userId) {
+        // Admin provisioning a wallet for another user — no current-user lookup, no PIN.
+        if (walletRepository.existsByUserId(userId)) {
+            throw new DuplicateResourceException("Wallet already exists for user: " + userId);
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+
+        UserWallet wallet = UserWallet.builder()
+                .user(user)
+                .pinCode(null)            // user sets their PIN on first wallet login
+                .balance(0.0)
+                .currency(Currency.USD)
+                .status(WalletStatus.ACTIVE)
+                .build();
+        user.setIsWalletExist(true);
+        userRepository.save(user);
+
+        UserWallet savedWallet = walletRepository.save(wallet);
+        return walletMapper.toResponse(savedWallet);
+    }
+
+    @Override
     public WalletResponse userCurrentWallet() {
         return walletMapper.toResponse(walletRepository.findByUserId(userUtil.getCurrentUserId()).orElseThrow(()->
         {

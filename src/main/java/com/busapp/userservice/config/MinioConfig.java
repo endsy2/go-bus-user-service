@@ -28,6 +28,9 @@ public class MinioConfig {
     @Value("${minio.bucket-name}")
     private String bucketName;
 
+    @Value("${minio.region:us-east-1}")
+    private String region;
+
     /**
      * Primary client — talks to MinIO over the internal endpoint for all
      * server-side operations (bucket creation, upload, delete).
@@ -38,6 +41,7 @@ public class MinioConfig {
         // Building the client does no network I/O — it cannot fail here.
         MinioClient client = MinioClient.builder()
                 .endpoint(endpoint)
+                .region(region)
                 .credentials(accessKey, secretKey)
                 .build();
 
@@ -80,6 +84,7 @@ public class MinioConfig {
     public MinioClient minioPresignClient() {
         return MinioClient.builder()
                 .endpoint(publicEndpoint)
+                .region(region)
                 .credentials(accessKey, secretKey)
                 .build();
     }

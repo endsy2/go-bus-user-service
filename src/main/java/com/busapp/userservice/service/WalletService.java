@@ -16,6 +16,13 @@ public interface WalletService {
 
     WalletResponse createWallet(WalletLoginRequest walletLoginRequest);
 
+    /**
+     * Admin-provisioned wallet creation for an arbitrary user (no PIN set — the
+     * user sets their PIN on first wallet login). Distinct from {@link #createWallet}
+     * which is the self-service flow for the current user.
+     */
+    WalletResponse createWalletForUser(Long userId);
+
     WalletResponse userCurrentWallet();
 
     WalletResponse getWalletById(UUID walletId);

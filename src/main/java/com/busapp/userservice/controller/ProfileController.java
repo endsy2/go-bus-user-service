@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
@@ -66,17 +67,22 @@ public class ProfileController {
             // Update user profile with new image reference
             userService.updateProfileImage(userId, objectName);
             
-            // Generate presigned URL for immediate access
+            // Generate presigned URL for immediate access. This can return null if
+            // signing fails (e.g. MinIO public endpoint unreachable); the image is
+            // already uploaded and saved, so don't fail the request — the client can
+            // re-fetch the URL via GET /profile/image/url. Use a null-tolerant map
+            // (Map.of throws NPE on null values).
             String imageUrl = minioUtil.getPresignedUrl(objectName);
-            
+
+            Map<String, String> payload = new HashMap<>();
+            payload.put("objectName", objectName);
+            payload.put("imageUrl", imageUrl);
+
             return ResponseEntity.ok(
                     ApiResponse.of(
                             HttpStatus.OK.value(),
                             "Profile image uploaded successfully",
-                            Map.of(
-                                    "objectName", objectName,
-                                    "imageUrl", imageUrl
-                            )
+                            payload
                     )
             );
         } catch (Exception e) {
