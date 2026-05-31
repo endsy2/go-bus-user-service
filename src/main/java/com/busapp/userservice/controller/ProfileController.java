@@ -132,46 +132,54 @@ public class ProfileController {
 
     /**
      * Get presigned URL for current profile image
-     * @param authentication Current authenticated user
-     * @return Presigned URL
+     * @return Presigned URL for the authenticated user's profile image
      */
-//    @GetMapping("/image/url")
-//    public ResponseEntity<ApiResponse<Map<String, String>>> getProfileImageUrl(Authentication authentication) {
-//        try {
-//            Long userId = Long.parseLong(authentication.getName());
-//
-//            String objectName = userService.getUserProfileImage(userId);
-//
-//            if (objectName == null || objectName.isEmpty()) {
-//                return ResponseEntity.ok(
-//                        ApiResponse.of(
-//                                HttpStatus.OK.value(),
-//                                "No profile image found",
-//                                Map.of("imageUrl", "")
-//                        )
-//                );
-//            }
-//
-//            String imageUrl = minioUtil.getPresignedUrl(objectName);
-//
-//            return ResponseEntity.ok(
-//                    ApiResponse.of(
-//                            HttpStatus.OK.value(),
-//                            "Profile image URL retrieved successfully",
-//                            Map.of(
-//                                    "objectName", objectName,
-//                                    "imageUrl", imageUrl != null ? imageUrl : ""
-//                            )
-//                    )
-//            );
-//        } catch (Exception e) {
-//            log.error("Failed to get profile image URL", e);
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(ApiResponse.of(
-//                            HttpStatus.INTERNAL_SERVER_ERROR.value(),
-//                            "Failed to get profile image URL: " + e.getMessage(),
-//                            null
-//                    ));
-//        }
-//    }
+    @GetMapping("/image/url")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getProfileImageUrl() {
+        try {
+            Long userId = userUtil.getCurrentUserId();
+
+            if (userId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.of(
+                                HttpStatus.UNAUTHORIZED.value(),
+                                "User not authenticated",
+                                null
+                        ));
+            }
+
+            String objectName = userService.getUserProfileImage(userId);
+
+            if (objectName == null || objectName.isEmpty()) {
+                return ResponseEntity.ok(
+                        ApiResponse.of(
+                                HttpStatus.OK.value(),
+                                "No profile image found",
+                                Map.of("objectName", "", "imageUrl", "")
+                        )
+                );
+            }
+
+            String imageUrl = minioUtil.getPresignedUrl(objectName);
+
+            return ResponseEntity.ok(
+                    ApiResponse.of(
+                            HttpStatus.OK.value(),
+                            "Profile image URL retrieved successfully",
+                            Map.of(
+                                    "objectName", objectName,
+                                    "imageUrl", imageUrl != null ? imageUrl : ""
+                            )
+                    )
+            );
+        } catch (Exception e) {
+            log.error("Failed to get profile image URL", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.of(
+                            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                            "Failed to get profile image URL: " + e.getMessage(),
+                            null
+                    ));
+        }
+    }
 }
