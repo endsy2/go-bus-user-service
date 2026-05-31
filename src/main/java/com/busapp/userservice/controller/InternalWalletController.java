@@ -1,6 +1,7 @@
 package com.busapp.userservice.controller;
 
 import com.busapp.userservice.dto.response.ApiResponse;
+import com.busapp.userservice.dto.response.WalletResponse;
 import com.busapp.userservice.dto.response.WalletTransactionResponse;
 import com.busapp.userservice.model.enums.TransactionType;
 import com.busapp.userservice.service.WalletService;
@@ -21,6 +22,48 @@ import org.springframework.web.bind.annotation.*;
 public class InternalWalletController {
 
     private final WalletService walletService;
+
+    /**
+     * Internal endpoint for booking-service to fetch a user's wallet info.
+     * Called by booking-service via Feign client (UserClient#getWalletByUserId)
+     * to build wallet snapshots (e.g. refund details).
+     *
+     * The response field names (walletId/balance/currency/status) intentionally
+     * match the booking-service {@code UserClient.WalletInfo} record.
+     */
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse<WalletInfoResponse>> getWalletByUserId(
+            @PathVariable("userId") Long userId) {
+
+        log.info("[INTERNAL WALLET] Fetching wallet info - userId={}", userId);
+
+        WalletResponse wallet = walletService.getWalletByUserId(userId);
+
+        WalletInfoResponse info = new WalletInfoResponse(
+                wallet.getId() != null ? wallet.getId().toString() : null,
+                wallet.getBalance(),
+                wallet.getCurrency() != null ? wallet.getCurrency().name() : null,
+                wallet.getStatus() != null ? wallet.getStatus().name() : null
+        );
+
+        return ResponseEntity.ok().body(
+                ApiResponse.of(
+                        HttpStatus.OK.value(),
+                        "Wallet retrieved successfully",
+                        info
+                )
+        );
+    }
+
+    /**
+     * Lightweight wallet projection for inter-service calls.
+     */
+    public record WalletInfoResponse(
+            String walletId,
+            Double balance,
+            String currency,
+            String status
+    ) {}
 
     /**
      * Internal endpoint for booking-service to deduct wallet for payments
