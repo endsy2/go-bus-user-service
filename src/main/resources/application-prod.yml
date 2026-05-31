@@ -48,7 +48,12 @@ spring:
 
 # ── MinIO Configuration ────────────────────────────────────────────────────────
 minio:
-  endpoint: ${MINIO_ENDPOINT:https://bucket-production-968b.up.railway.app:443"}
+  # Internal endpoint for server-side I/O (upload/delete) over Railway's private network.
+  endpoint: ${MINIO_ENDPOINT:http://bucket.railway.internal:9000}
+  # Public, browser-reachable endpoint used ONLY to sign presigned URLs. The signed host
+  # is part of the SigV4 signature, so it MUST be the host the browser actually loads from —
+  # never the *.railway.internal address (browsers can't resolve it).
+  public-endpoint: ${MINIO_PUBLIC_ENDPOINT:https://bucket-production-968b.up.railway.app}
   access-key: ${MINIO_ACCESS_KEY:Ibc7VidQNVyjs5O6BTSofAJZwipsVj5b}
   secret-key: ${MINIO_SECRET_KEY:zRj2DOKqYGtz3nn8yVtCh6rSb1QQAhv5uw0xJYlrBjZaOW01}
   bucket-name: ${MINIO_BUCKET_NAME:go-bus-bucket}

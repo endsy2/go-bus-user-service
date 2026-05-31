@@ -35,13 +35,17 @@ public class MinioConfig {
     @Bean
     @Primary
     public MinioClient minioClient() {
-        try {
-            MinioClient client = MinioClient.builder()
-                    .endpoint(endpoint)
-                    .credentials(accessKey, secretKey)
-                    .build();
+        // Building the client does no network I/O — it cannot fail here.
+        MinioClient client = MinioClient.builder()
+                .endpoint(endpoint)
+                .credentials(accessKey, secretKey)
+                .build();
 
-            // Create bucket if it doesn't exist
+        // Bucket bootstrap DOES hit the network. Keep it non-fatal: if MinIO is
+        // unreachable at boot, log and continue so the rest of user-service (auth,
+        // users, wallet, …) still starts. Profile-image features degrade until MinIO
+        // is reachable rather than taking down the whole service.
+        try {
             boolean bucketExists = client.bucketExists(
                     BucketExistsArgs.builder()
                             .bucket(bucketName)
@@ -58,12 +62,13 @@ public class MinioConfig {
             } else {
                 log.info("MinIO bucket '{}' already exists", bucketName);
             }
-
-            return client;
         } catch (Exception e) {
-            log.error("Failed to initialize MinIO client", e);
-            throw new RuntimeException("Failed to initialize MinIO client", e);
+            log.error("MinIO bucket bootstrap failed for endpoint '{}' (bucket '{}'). "
+                    + "Profile-image features will be unavailable until MinIO is reachable.",
+                    endpoint, bucketName, e);
         }
+
+        return client;
     }
 
     /**
