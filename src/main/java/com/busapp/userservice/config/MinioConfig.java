@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 @Slf4j
 @Configuration
@@ -14,6 +15,9 @@ public class MinioConfig {
 
     @Value("${minio.endpoint}")
     private String endpoint;
+
+    @Value("${minio.public-endpoint}")
+    private String publicEndpoint;
 
     @Value("${minio.access-key}")
     private String accessKey;
@@ -24,7 +28,12 @@ public class MinioConfig {
     @Value("${minio.bucket-name}")
     private String bucketName;
 
+    /**
+     * Primary client — talks to MinIO over the internal endpoint for all
+     * server-side operations (bucket creation, upload, delete).
+     */
     @Bean
+    @Primary
     public MinioClient minioClient() {
         try {
             MinioClient client = MinioClient.builder()
@@ -55,5 +64,18 @@ public class MinioConfig {
             log.error("Failed to initialize MinIO client", e);
             throw new RuntimeException("Failed to initialize MinIO client", e);
         }
+    }
+
+    /**
+     * Presign-only client — built with the PUBLIC endpoint so generated
+     * presigned URLs are signed for (and reachable at) the host the browser
+     * actually loads images from. Does no bucket I/O itself.
+     */
+    @Bean(name = "minioPresignClient")
+    public MinioClient minioPresignClient() {
+        return MinioClient.builder()
+                .endpoint(publicEndpoint)
+                .credentials(accessKey, secretKey)
+                .build();
     }
 }

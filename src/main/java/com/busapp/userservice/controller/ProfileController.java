@@ -13,7 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import com.busapp.userservice.security.UserPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -97,10 +96,24 @@ public class ProfileController {
      * @return Success response
      */
     @DeleteMapping("/image")
-    public ResponseEntity<ApiResponse<Void>> deleteProfileImage(UserPrincipal userPrincipal) {
+    public ResponseEntity<ApiResponse<Void>> deleteProfileImage() {
         try {
-            Long userId = userPrincipal.getUserId();
-            
+            // Resolve the user from the SecurityContext (populated by HeaderAuthenticationFilter),
+            // like the other methods here. A `UserPrincipal` method parameter cannot be used because
+            // UserPrincipal implements java.security.Principal, so Spring's built-in
+            // PrincipalMethodArgumentResolver intercepts it before our custom resolver and throws
+            // "Current user principal is not of type [...]".
+            Long userId = userUtil.getCurrentUserId();
+
+            if (userId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.of(
+                                HttpStatus.UNAUTHORIZED.value(),
+                                "User not authenticated",
+                                null
+                        ));
+            }
+
             // Get current image reference
             String currentImage = userService.getUserProfileImage(userId);
             

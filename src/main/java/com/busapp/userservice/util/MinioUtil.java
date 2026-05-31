@@ -4,6 +4,7 @@ import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.http.Method;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Async;
@@ -19,7 +20,9 @@ public class MinioUtil {
     private String bucketName;
     private final MinioClient minioClient;
 
-    public MinioUtil(MinioClient minioClient) {
+    // Use the public-endpoint client so presigned URLs are signed for the host
+    // the browser can actually reach (see MinioConfig#minioPresignClient).
+    public MinioUtil(@Qualifier("minioPresignClient") MinioClient minioClient) {
         this.minioClient = minioClient;
     }
 
